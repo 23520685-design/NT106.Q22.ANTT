@@ -1,0 +1,20 @@
+## [ Build Artifacts ]
+[Bb]in/
+[Oo]bj/
+
+## [ Visual Studio ]
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vshost.exe
+*.vshost.exe.config
+*.vshost.exe.manifest
+
+## [ NuGet ]
+packages/
+!packages/repositories.config
+
+## [ Security - Custom ]
+FirebaseService.cs
