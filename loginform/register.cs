@@ -137,7 +137,7 @@ namespace loginform
 
                 string responseString = "<html><body style='font-family:Arial;text-align:center;padding-top:50px;'>" +
                                        "<h1 style='color:#1877f2;'>Koobecaf Registration</h1>" +
-                                       "<p>Xác thực thành công!</p>" +
+                                       "<p>Xac thuc thanh cong!</p>" +
                                        "<script>setTimeout(function(){ window.close(); }, 2000);</script></body></html>";
 
                 byte[] buffer = Encoding.UTF8.GetBytes(responseString);
