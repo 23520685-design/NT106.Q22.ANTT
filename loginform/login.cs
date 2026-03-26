@@ -134,5 +134,66 @@ namespace loginform
             registerForm.Show();
             this.Hide();
         }
+
+        private async void button2_Click(object sender, EventArgs e)
+        {
+            // Dùng port 8081 cho đồng bộ với bên Register
+            string redirectUri = "http://localhost:8081/";
+            string url = $"https://accounts.google.com/o/oauth2/auth?client_id={FirebaseService.GoogleClientId}&redirect_uri={redirectUri}&scope=email%20profile&response_type=code";
+
+            try
+            {
+                if (listener == null || !listener.IsListening)
+                {
+                    listener = new HttpListener();
+                    listener.Prefixes.Add(redirectUri);
+                    listener.Start();
+                }
+
+                Process.Start(url);
+
+                HttpListenerContext context = await listener.GetContextAsync();
+                string code = context.Request.QueryString.Get("code");
+
+                string responseString = "<html><body style='font-family:Arial;text-align:center;padding-top:50px;'>" +
+                                       "<h1 style='color:#1877f2;'>Koobecaf Login</h1>" +
+                                       "<p>Xac thuc thanh cong!</p>" +
+                                       "<script>setTimeout(function(){ window.close(); }, 2000);</script></body></html>";
+
+                byte[] buffer = Encoding.UTF8.GetBytes(responseString);
+                context.Response.ContentLength64 = buffer.Length;
+                context.Response.OutputStream.Write(buffer, 0, buffer.Length);
+                context.Response.OutputStream.Close();
+
+                listener.Stop();
+
+                if (!string.IsNullOrEmpty(code))
+                {
+                    LoginWithGoogleCode(code, redirectUri);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (listener != null) listener.Stop();
+                ShowError("Lỗi kết nối Google: " + ex.Message);
+            }
+        }
+
+        private void LoginWithGoogleCode(string code, string redirectUri)
+        {
+            try
+            {
+                string decodedCode = System.Net.WebUtility.UrlDecode(code);
+                var access = AuthResponse.Exchange(decodedCode,
+                                                  FirebaseService.GoogleClientId,
+                                                  FirebaseService.GoogleClientSecret,
+                                                  redirectUri);
+
+                MessageBox.Show(this, "Đăng nhập Google thành công!", "Koobecaf", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                new Dashboard().Show();
+                this.Hide();
+            }
+            catch (Exception ex) { ShowError("Lỗi xác thực Google: " + ex.Message); }
+        }
     }
 }
