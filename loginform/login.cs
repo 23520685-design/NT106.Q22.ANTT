@@ -127,5 +127,12 @@ namespace loginform
                 label1.Enabled = true;
             }
         }
+
+        private void label5_Click(object sender, EventArgs e)
+        {
+            register registerForm = new register();
+            registerForm.Show();
+            this.Hide();
+        }
     }
 }

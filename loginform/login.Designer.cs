@@ -110,6 +110,7 @@
             this.label5.Size = new System.Drawing.Size(52, 16);
             this.label5.TabIndex = 9;
             this.label5.Text = "Sign up";
+            this.label5.Click += new System.EventHandler(this.label5_Click);
             // 
             // logintext2
             // 

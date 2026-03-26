@@ -89,6 +89,9 @@
             this.label5.TabIndex = 18;
             this.label5.Text = "Login";
             this.label5.Click += new System.EventHandler(this.label5_Click);
+            this.label5.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Form_MouseDown);
+            this.label5.MouseMove += new System.Windows.Forms.MouseEventHandler(this.Form_MouseMove);
+            this.label5.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Form_MouseUp);
             // 
             // label4
             // 
@@ -157,6 +160,7 @@
             // 
             // register
             // 
+            this.AcceptButton = this.button1;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
