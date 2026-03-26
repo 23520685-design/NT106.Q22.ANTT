@@ -11,6 +11,9 @@ namespace loginform
         [JsonProperty("access_token")]
         public string Access_token { get; set; }
 
+
+        [JsonProperty("id_token")]
+        public string IdToken { get; set; }
         public static AuthResponse Exchange(string authCode, string clientid, string secret, string redirectURI)
         {
             var request = (HttpWebRequest)WebRequest.Create("https://accounts.google.com/o/oauth2/token");

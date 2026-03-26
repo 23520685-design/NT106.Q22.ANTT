@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Firebase.Auth;
+using Firebase.Auth.Providers;
 
 namespace loginform
 {
@@ -159,7 +160,7 @@ namespace loginform
             }
         }
 
-        private void RegisterWithGoogleCode(string code, string redirectUri)
+        private async void RegisterWithGoogleCode(string code, string redirectUri)
         {
             try
             {
@@ -168,9 +169,11 @@ namespace loginform
                                                   FirebaseService.GoogleClientId,
                                                   FirebaseService.GoogleClientSecret,
                                                   redirectUri);
+                var credential = GoogleProvider.GetCredential(access.IdToken, OAuthCredentialTokenType.IdToken);
 
+                var authClient = FirebaseService.GetAuthClient();
+                var userCredential = await authClient.SignInWithCredentialAsync(credential);
                 MessageBox.Show(this, "Liên kết Google thành công!", "Koobecaf", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
                 new Dashboard().Show();
                 this.Hide();
             }
