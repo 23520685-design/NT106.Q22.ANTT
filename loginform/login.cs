@@ -110,7 +110,7 @@ namespace loginform
             try
             {
                 await authClient.ResetEmailPasswordAsync(email);
-                MessageBox.Show(this, $"Đã gửi link reset mật khẩu tới {email}.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, $"Đã gửi link reset mật khẩu tới {email}, vui lòng kiểm tra muc spam.", "Thành công", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 label1.Enabled = false;
                 string originalText = label1.Text;
