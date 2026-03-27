@@ -1,17 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace loginform
 {
     public partial class Dashboard : Form
     {
+        // 1. Tạo một cờ để phân biệt bấm X hay bấm Đăng xuất
+        private bool isLoggingOut = false;
+
         public Dashboard()
         {
             InitializeComponent();
@@ -26,6 +22,9 @@ namespace loginform
                 var authClient = FirebaseService.GetAuthClient();
                 authClient.SignOut();
 
+                // 2. Bật cờ này lên trước khi đóng Form
+                isLoggingOut = true;
+
                 login loginForm = new login();
                 loginForm.Show();
 
@@ -35,7 +34,7 @@ namespace loginform
 
         private void Dashboard_FormClosed(object sender, FormClosedEventArgs e)
         {
-            if (Application.OpenForms.Count == 0 || (Application.OpenForms.Count == 1 && Application.OpenForms[0] is Dashboard))
+            if (!isLoggingOut)
             {
                 Application.Exit();
             }
