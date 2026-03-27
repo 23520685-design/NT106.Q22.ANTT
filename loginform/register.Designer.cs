@@ -125,8 +125,8 @@
             // 
             // gradientPanel1
             // 
-            this.gradientPanel1.Controls.Add(this.pictureBox2);
             this.gradientPanel1.Controls.Add(this.label3);
+            this.gradientPanel1.Controls.Add(this.pictureBox2);
             this.gradientPanel1.gradientBottom = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(145)))), ((int)(((byte)(245)))));
             this.gradientPanel1.gradientTop = System.Drawing.Color.FromArgb(((int)(((byte)(9)))), ((int)(((byte)(74)))), ((int)(((byte)(158)))));
             this.gradientPanel1.Location = new System.Drawing.Point(-8, -27);

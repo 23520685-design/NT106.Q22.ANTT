@@ -69,5 +69,15 @@ namespace loginform.Properties {
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap Gemini_Generated_Image_v7w8l1v7w8l1v7w8 {
+            get {
+                object obj = ResourceManager.GetObject("Gemini_Generated_Image_v7w8l1v7w8l1v7w8", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }
