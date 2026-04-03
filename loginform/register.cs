@@ -54,7 +54,7 @@ namespace loginform
                 return;
             }
 
-            // 2. Kiểm tra độ dài mật khẩu (Luật của Firebase là tối thiểu 6 ký tự)
+            // 2. Kiểm tra độ dài mật khẩu
             if (password.Length < 6)
             {
                 ShowError("Mật khẩu phải có ít nhất 6 ký tự nhé!");
@@ -75,7 +75,7 @@ namespace loginform
                 string friendlyMessage = "Đăng ký thất bại, vui lòng thử lại.";
                 string rawError = ex.Message.ToLower();
 
-                // Bắt các lỗi đặc thù của Đăng ký
+                // Kiem tra loi
                 if (rawError.Contains("email_exists"))
                 {
                     friendlyMessage = "Email này đã được đăng ký!";
@@ -99,12 +99,11 @@ namespace loginform
 
         private void ShowError(string msg)
         {
-            // Không dùng ServiceNotification để tránh mất Focus
             MessageBox.Show(this, msg, "Lỗi đăng ký", MessageBoxButtons.OK, MessageBoxIcon.Error);
             this.Activate();
         }
 
-        // --- ĐĂNG KÝ/ĐĂNG NHẬP NHANH BẰNG GOOGLE ---
+        // --- ĐĂNG KÝ/ĐĂNG NHẬP BẰNG GOOGLE ---
         private async void button2_Click(object sender, EventArgs e)
         {
             string redirectUri = "http://localhost:8081/";
