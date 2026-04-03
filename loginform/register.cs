@@ -13,7 +13,6 @@ namespace loginform
 {
     public partial class register : Form
     {
-        // --- CHIÊU THỨC WIN32 API ĐỂ KÉO FORM SIÊU MƯỢT ---
         [DllImport("user32.dll")]
         public static extern bool ReleaseCapture();
         [DllImport("user32.dll")]
