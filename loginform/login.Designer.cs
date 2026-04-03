@@ -39,8 +39,8 @@
             this.logintext2 = new loginform.logintext();
             this.logintext1 = new loginform.logintext();
             this.gradientPanel1 = new loginform.LoginUI_Design.GradientPanel();
-            this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.label3 = new System.Windows.Forms.Label();
+            this.pictureBox2 = new System.Windows.Forms.PictureBox();
             this.gradientPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.SuspendLayout();
@@ -136,8 +136,8 @@
             // 
             // gradientPanel1
             // 
-            this.gradientPanel1.Controls.Add(this.pictureBox2);
             this.gradientPanel1.Controls.Add(this.label3);
+            this.gradientPanel1.Controls.Add(this.pictureBox2);
             this.gradientPanel1.gradientBottom = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(145)))), ((int)(((byte)(245)))));
             this.gradientPanel1.gradientTop = System.Drawing.Color.FromArgb(((int)(((byte)(9)))), ((int)(((byte)(74)))), ((int)(((byte)(158)))));
             this.gradientPanel1.Location = new System.Drawing.Point(-3, -6);
@@ -145,28 +145,28 @@
             this.gradientPanel1.Size = new System.Drawing.Size(438, 505);
             this.gradientPanel1.TabIndex = 0;
             // 
-            // pictureBox2
-            // 
-            this.pictureBox2.BackColor = System.Drawing.Color.Transparent;
-            this.pictureBox2.Image = global::loginform.Properties.Resources.cloud;
-            this.pictureBox2.Location = new System.Drawing.Point(276, 3);
-            this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(163, 499);
-            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pictureBox2.TabIndex = 10;
-            this.pictureBox2.TabStop = false;
-            // 
             // label3
             // 
             this.label3.AutoSize = true;
             this.label3.BackColor = System.Drawing.Color.Transparent;
             this.label3.Font = new System.Drawing.Font("Microsoft Sans Serif", 18F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.label3.ForeColor = System.Drawing.Color.White;
-            this.label3.Location = new System.Drawing.Point(108, 204);
+            this.label3.Location = new System.Drawing.Point(94, 202);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(176, 36);
             this.label3.TabIndex = 8;
             this.label3.Text = "WELCOME";
+            // 
+            // pictureBox2
+            // 
+            this.pictureBox2.BackColor = System.Drawing.Color.Transparent;
+            this.pictureBox2.Image = global::loginform.Properties.Resources.cloud;
+            this.pictureBox2.Location = new System.Drawing.Point(274, 3);
+            this.pictureBox2.Name = "pictureBox2";
+            this.pictureBox2.Size = new System.Drawing.Size(163, 499);
+            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pictureBox2.TabIndex = 10;
+            this.pictureBox2.TabStop = false;
             // 
             // login
             // 
