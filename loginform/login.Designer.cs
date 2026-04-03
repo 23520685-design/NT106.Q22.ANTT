@@ -39,8 +39,8 @@
             this.logintext2 = new loginform.logintext();
             this.logintext1 = new loginform.logintext();
             this.gradientPanel1 = new loginform.LoginUI_Design.GradientPanel();
-            this.label3 = new System.Windows.Forms.Label();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
+            this.label3 = new System.Windows.Forms.Label();
             this.gradientPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.SuspendLayout();
@@ -105,7 +105,7 @@
             // 
             this.label5.AutoSize = true;
             this.label5.ForeColor = System.Drawing.Color.Blue;
-            this.label5.Location = new System.Drawing.Point(675, 469);
+            this.label5.Location = new System.Drawing.Point(683, 469);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(52, 16);
             this.label5.TabIndex = 9;
@@ -136,14 +136,25 @@
             // 
             // gradientPanel1
             // 
-            this.gradientPanel1.Controls.Add(this.label3);
             this.gradientPanel1.Controls.Add(this.pictureBox2);
+            this.gradientPanel1.Controls.Add(this.label3);
             this.gradientPanel1.gradientBottom = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(145)))), ((int)(((byte)(245)))));
             this.gradientPanel1.gradientTop = System.Drawing.Color.FromArgb(((int)(((byte)(9)))), ((int)(((byte)(74)))), ((int)(((byte)(158)))));
             this.gradientPanel1.Location = new System.Drawing.Point(-3, -6);
             this.gradientPanel1.Name = "gradientPanel1";
             this.gradientPanel1.Size = new System.Drawing.Size(438, 505);
             this.gradientPanel1.TabIndex = 0;
+            // 
+            // pictureBox2
+            // 
+            this.pictureBox2.BackColor = System.Drawing.Color.Transparent;
+            this.pictureBox2.Image = global::loginform.Properties.Resources.cloud;
+            this.pictureBox2.Location = new System.Drawing.Point(276, 3);
+            this.pictureBox2.Name = "pictureBox2";
+            this.pictureBox2.Size = new System.Drawing.Size(163, 499);
+            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
+            this.pictureBox2.TabIndex = 10;
+            this.pictureBox2.TabStop = false;
             // 
             // label3
             // 
@@ -156,17 +167,6 @@
             this.label3.Size = new System.Drawing.Size(176, 36);
             this.label3.TabIndex = 8;
             this.label3.Text = "WELCOME";
-            // 
-            // pictureBox2
-            // 
-            this.pictureBox2.BackColor = System.Drawing.Color.Transparent;
-            this.pictureBox2.Image = global::loginform.Properties.Resources.cc;
-            this.pictureBox2.Location = new System.Drawing.Point(275, 3);
-            this.pictureBox2.Name = "pictureBox2";
-            this.pictureBox2.Size = new System.Drawing.Size(163, 499);
-            this.pictureBox2.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
-            this.pictureBox2.TabIndex = 10;
-            this.pictureBox2.TabStop = false;
             // 
             // login
             // 
@@ -187,9 +187,6 @@
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "login";
             this.Text = "Form1";
-            this.MouseDown += new System.Windows.Forms.MouseEventHandler(this.Form_MouseDown);
-            this.MouseMove += new System.Windows.Forms.MouseEventHandler(this.Form_MouseMove);
-            this.MouseUp += new System.Windows.Forms.MouseEventHandler(this.Form_MouseUp);
             this.gradientPanel1.ResumeLayout(false);
             this.gradientPanel1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).EndInit();

@@ -7,42 +7,35 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Firebase.Auth;
 using Firebase.Auth.Providers;
+using System.Runtime.InteropServices;
 
 namespace loginform
 {
     public partial class login : Form
     {
-        private bool dragging = false;
-        private Point startPoint = new Point(0, 0);
+        [DllImport("user32.dll")]
+        public static extern bool ReleaseCapture();
+        [DllImport("user32.dll")]
+        public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+
+        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int HT_CAPTION = 0x2;
+
+        private void Form_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ReleaseCapture();
+                SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+            }
+        }
+
         private HttpListener listener;
 
         public login()
         {
             InitializeComponent();
-            this.DoubleBuffered = true;
             this.MouseDown += Form_MouseDown;
-            this.MouseMove += Form_MouseMove;
-            this.MouseUp += Form_MouseUp;
-        }
-
-        private void Form_MouseDown(object sender, MouseEventArgs e)
-        {
-            dragging = true;
-            startPoint = new Point(e.X, e.Y);
-        }
-
-        private void Form_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (dragging)
-            {
-                Point p = PointToScreen(e.Location);
-                this.Location = new Point(p.X - startPoint.X, p.Y - startPoint.Y);
-            }
-        }
-
-        private void Form_MouseUp(object sender, MouseEventArgs e)
-        {
-            dragging = false;
         }
 
         private async void button1_Click(object sender, EventArgs e)

@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -12,44 +13,32 @@ namespace loginform
 {
     public partial class register : Form
     {
-        private bool dragging = false;
-        private Point startPoint = new Point(0, 0);
+        // --- CHIÊU THỨC WIN32 API ĐỂ KÉO FORM SIÊU MƯỢT ---
+        [DllImport("user32.dll")]
+        public static extern bool ReleaseCapture();
+        [DllImport("user32.dll")]
+        public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+
+        private const int WM_NCLBUTTONDOWN = 0xA1;
+        private const int HT_CAPTION = 0x2;
+
+        private void Form_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                ReleaseCapture();
+                SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+            }
+        }
+
         private HttpListener listener;
 
         public register()
         {
             InitializeComponent();
+
             this.DoubleBuffered = true;
-
             this.MouseDown += Form_MouseDown;
-            this.MouseMove += Form_MouseMove;
-            this.MouseUp += Form_MouseUp;
-        }
-
-        private void Form_MouseDown(object sender, MouseEventArgs e)
-        {
-            dragging = true;
-            startPoint = new Point(e.X, e.Y);
-        }
-
-        private void Form_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (dragging)
-            {
-                Point p = PointToScreen(e.Location);
-                this.Location = new Point(p.X - startPoint.X, p.Y - startPoint.Y);
-            }
-        }
-
-        private void Form_MouseUp(object sender, MouseEventArgs e)
-        {
-            dragging = false;
-        }
-
-        private void label5_Click(object sender, EventArgs e)
-        {
-            new login().Show();
-            this.Hide();
         }
 
         // --- ĐĂNG KÝ BẰNG EMAIL/PASS ---
@@ -178,6 +167,13 @@ namespace loginform
                 this.Hide();
             }
             catch (Exception ex) { ShowError("Lỗi xác thực Google: " + ex.Message); }
+        }
+
+        private void label5_Click_1(object sender, EventArgs e)
+        {
+            login loginForm = new login();
+            loginForm.Show();
+            this.Hide();
         }
     }
 }
