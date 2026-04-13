@@ -44,27 +44,33 @@ namespace loginform
         private async void button1_Click(object sender, EventArgs e)
         {
             var authClient = FirebaseService.GetAuthClient();
+
             string email = logintext1.Text.Trim();
             string password = logintext2.Text.Trim();
+            string confirmPassword = logintext3.Text.Trim();
 
-            // 1. Kiểm tra trống
-            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) || string.IsNullOrEmpty(confirmPassword))
             {
-                ShowError("Vui lòng điền đầy đủ thông tin đăng ký!");
+                ShowError("Hãy điền đầy đủ Email, Password và Confirm Password!");
                 return;
             }
 
-            // 2. Kiểm tra độ dài mật khẩu
             if (password.Length < 6)
             {
-                ShowError("Mật khẩu phải có ít nhất 6 ký tự nhé!");
+                ShowError("Mật khẩu ít nhất 6 ký tự!");
+                return;
+            }
+
+            if (password != confirmPassword)
+            {
+                ShowError("Mật khẩu xác nhận không khớp!");
+                logintext3.Focus();
                 return;
             }
 
             try
             {
                 await authClient.CreateUserWithEmailAndPasswordAsync(email, password);
-
                 MessageBox.Show(this, "Đăng ký tài khoản thành công!", "Thông báo", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                 new Dashboard().Show();
@@ -72,22 +78,12 @@ namespace loginform
             }
             catch (FirebaseAuthException ex)
             {
-                string friendlyMessage = "Đăng ký thất bại, vui lòng thử lại.";
+                string friendlyMessage = "Đăng ký thất bại!";
                 string rawError = ex.Message.ToLower();
 
-                // Kiem tra loi
-                if (rawError.Contains("email_exists"))
-                {
-                    friendlyMessage = "Email này đã được đăng ký!";
-                }
-                else if (rawError.Contains("invalid_email") || rawError.Contains("invalid-email"))
-                {
-                    friendlyMessage = "Email không đúng định dạng!";
-                }
-                else if (rawError.Contains("too_many_attempts"))
-                {
-                    friendlyMessage = "Thao tác quá nhanh, thử lại sau nhé.";
-                }
+                if (rawError.Contains("email_exists")) friendlyMessage = "Email này có đã được đăng ký!";
+                else if (rawError.Contains("invalid_email")) friendlyMessage = "Email không đúng định dạng!";
+                else if (rawError.Contains("too_many_attempts")) friendlyMessage = "Thao tác quá nhanh!";
 
                 ShowError(friendlyMessage);
             }
@@ -173,5 +169,8 @@ namespace loginform
             loginForm.Show();
             this.Hide();
         }
+        private void logintext3_Load(object sender, EventArgs e) { }
+        private void logintext2_Load(object sender, EventArgs e) { }
+        private void logintext1_Load(object sender, EventArgs e) { }
     }
 }

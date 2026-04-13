@@ -38,6 +38,7 @@
             this.gradientPanel1 = new loginform.LoginUI_Design.GradientPanel();
             this.label3 = new System.Windows.Forms.Label();
             this.pictureBox2 = new System.Windows.Forms.PictureBox();
+            this.logintext3 = new loginform.logintext();
             this.gradientPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox2)).BeginInit();
             this.SuspendLayout();
@@ -46,7 +47,7 @@
             // 
             this.label2.AutoSize = true;
             this.label2.Font = new System.Drawing.Font("Microsoft Sans Serif", 13.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.Location = new System.Drawing.Point(460, 75);
+            this.label2.Location = new System.Drawing.Point(460, 19);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(291, 29);
             this.label2.TabIndex = 16;
@@ -70,7 +71,7 @@
             this.button1.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.button1.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.button1.ForeColor = System.Drawing.Color.White;
-            this.button1.Location = new System.Drawing.Point(465, 311);
+            this.button1.Location = new System.Drawing.Point(465, 323);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(332, 50);
             this.button1.TabIndex = 14;
@@ -102,23 +103,25 @@
             // 
             this.logintext2.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(145)))), ((int)(((byte)(245)))));
             this.logintext2.IsPassword = true;
-            this.logintext2.Location = new System.Drawing.Point(465, 228);
+            this.logintext2.Location = new System.Drawing.Point(474, 145);
             this.logintext2.Name = "logintext2";
             this.logintext2.Padding = new System.Windows.Forms.Padding(0, 0, 0, 1);
             this.logintext2.Size = new System.Drawing.Size(332, 59);
             this.logintext2.TabIndex = 12;
             this.logintext2.TitleText = "Password";
+            this.logintext2.Load += new System.EventHandler(this.logintext2_Load);
             // 
             // logintext1
             // 
             this.logintext1.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(145)))), ((int)(((byte)(245)))));
             this.logintext1.IsPassword = false;
-            this.logintext1.Location = new System.Drawing.Point(465, 137);
+            this.logintext1.Location = new System.Drawing.Point(474, 69);
             this.logintext1.Name = "logintext1";
             this.logintext1.Padding = new System.Windows.Forms.Padding(0, 0, 0, 1);
             this.logintext1.Size = new System.Drawing.Size(332, 59);
             this.logintext1.TabIndex = 11;
             this.logintext1.TitleText = "Email";
+            this.logintext1.Load += new System.EventHandler(this.logintext1_Load);
             // 
             // gradientPanel1
             // 
@@ -154,6 +157,18 @@
             this.pictureBox2.TabIndex = 11;
             this.pictureBox2.TabStop = false;
             // 
+            // logintext3
+            // 
+            this.logintext3.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(33)))), ((int)(((byte)(145)))), ((int)(((byte)(245)))));
+            this.logintext3.IsPassword = true;
+            this.logintext3.Location = new System.Drawing.Point(474, 234);
+            this.logintext3.Name = "logintext3";
+            this.logintext3.Padding = new System.Windows.Forms.Padding(0, 0, 0, 1);
+            this.logintext3.Size = new System.Drawing.Size(332, 59);
+            this.logintext3.TabIndex = 19;
+            this.logintext3.TitleText = "Confirm password";
+            this.logintext3.Load += new System.EventHandler(this.logintext3_Load);
+            // 
             // register
             // 
             this.AcceptButton = this.button1;
@@ -161,6 +176,7 @@
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
             this.ClientSize = new System.Drawing.Size(834, 494);
+            this.Controls.Add(this.logintext3);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.button2);
@@ -192,5 +208,6 @@
         private System.Windows.Forms.Label label5;
         private System.Windows.Forms.Label label4;
         private System.Windows.Forms.PictureBox pictureBox2;
+        private logintext logintext3;
     }
 }
