@@ -14,6 +14,9 @@ namespace loginform
     public partial class register : Form
     {
         [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
         public static extern bool ReleaseCapture();
         [DllImport("user32.dll")]
         public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
@@ -119,10 +122,77 @@ namespace loginform
                 HttpListenerContext context = await listener.GetContextAsync();
                 string code = context.Request.QueryString.Get("code");
 
-                string responseString = "<html><body style='font-family:Arial;text-align:center;padding-top:50px;'>" +
-                                       "<h1 style='color:#1877f2;'>Koobecaf Registration</h1>" +
-                                       "<p>Xac thuc thanh cong!</p>" +
-                                       "<script>setTimeout(function(){ window.close(); }, 2000);</script></body></html>";
+                string responseString = $@"
+<html>
+<head>
+    <meta charset='utf-8'>
+    <style>
+        body {{ 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #f0f2f5; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0; 
+        }}
+        .card {{ 
+            background: white; 
+            padding: 40px; 
+            border-radius: 16px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            text-align: center; 
+            max-width: 400px; 
+            animation: fadeIn 0.8s ease-out;
+        }}
+        .icon-circle {{
+            width: 80px;
+            height: 80px;
+            background-color: #00c853;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 45px;
+            box-shadow: 0 4px 15px rgba(0, 200, 83, 0.3);
+        }}
+        h1 {{ color: #1877f2; margin: 0 0 10px 0; font-size: 26px; font-weight: 700; }}
+        p {{ color: #4b4f56; font-size: 16px; margin: 0; line-height: 1.5; }}
+        .loader {{
+            margin-top: 30px;
+            height: 6px;
+            width: 100%;
+            background: #e4e6eb;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }}
+        .loader::after {{
+            content: '';
+            position: absolute;
+            left: 0; height: 100%; width: 0;
+            background: linear-gradient(90deg, #1877f2, #00c853);
+            animation: progress 2.5s linear forwards;
+        }}
+        @keyframes fadeIn {{ from {{ opacity: 0; transform: scale(0.9); }} to {{ opacity: 1; transform: scale(1); }} }}
+        @keyframes progress {{ from {{ width: 0; }} to {{ width: 100%; }} }}
+    </style>
+</head>
+<body>
+    <div class='card'>
+        <div class='icon-circle'>✓</div>
+        <h1>Welcome to Koobecaf</h1>
+        <p>Tài khoản Google đã được liên kết thành công.</p>
+        <div class='loader'></div>
+        <p style='font-size: 13px; margin-top: 20px; color: #8d949e;'>Vui lòng quay lại ứng dụng để tiếp tục.</p>
+    </div>
+    <script>
+        setTimeout(function(){{ window.close(); }}, 2500);
+    </script>
+</body>
+</html>";
 
                 byte[] buffer = Encoding.UTF8.GetBytes(responseString);
                 context.Response.ContentLength64 = buffer.Length;
@@ -156,10 +226,20 @@ namespace loginform
 
                 var authClient = FirebaseService.GetAuthClient();
                 var userCredential = await authClient.SignInWithCredentialAsync(credential);
+
+                this.Invoke((MethodInvoker)delegate {
+                    this.WindowState = FormWindowState.Normal; // Nếu đang thu nhỏ thì bung lên
+                    SetForegroundWindow(this.Handle);          // Ép Windows đẩy app lên trước mặt
+                    this.Activate();                           // Kích hoạt Form
+                });
                 MessageBox.Show(this, "Liên kết Google thành công!", "Koobecaf", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                new Dashboard().Show();
+                var dash = new Dashboard();
+
+                dash.Show();
+                SetForegroundWindow(dash.Handle); // Đảm bảo Dashboard cũng nằm trên cùng
                 this.Hide();
             }
+
             catch (Exception ex) { ShowError("Lỗi xác thực Google: " + ex.Message); }
         }
 
@@ -172,5 +252,10 @@ namespace loginform
         private void logintext3_Load(object sender, EventArgs e) { }
         private void logintext2_Load(object sender, EventArgs e) { }
         private void logintext1_Load(object sender, EventArgs e) { }
+
+        private void register_Load(object sender, EventArgs e)
+        {
+
+        }
     }
 }
