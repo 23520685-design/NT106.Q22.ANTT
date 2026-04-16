@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Social Mini - Glassmorphism</title>
+    <link rel="stylesheet" href="./style.css" />
+    <!-- Font Awesome cho icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <!-- ==================== TOP PANEL ==================== -->
+    <header class="top-panel glass">
+      <div class="logo-section">
+        <div class="logo-icon">
+          <i class="fas fa-feather-alt"></i>
+        </div>
+        <span class="logo-text">Mini Social App</span>
+      </div>
+
+      <div class="search-box glass-input">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="Tìm kiếm..." />
+      </div>
+
+      <div class="user-actions">
+        <button class="icon-btn glass-btn">
+          <i class="fas fa-bell"></i>
+          <span class="badge">3</span>
+        </button>
+        <button class="icon-btn glass-btn">
+          <i class="fas fa-envelope"></i>
+        </button>
+        <div class="user-avatar">
+          <img src="https://i.pravatar.cc/150?img=11" alt="User" />
+          <span class="status-dot online"></span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ==================== MAIN CONTAINER ==================== -->
+    <div class="main-container">
+      <!-- ==================== PANEL 1: SIDEBAR LEFT (Collapsible) ==================== -->
+      <nav class="sidebar-left glass" id="sidebarLeft">
+        <button
+          class="toggle-btn glass-btn"
+          id="toggleSidebar"
+          title="Thu nhỏ/Mở rộng"
+        >
+          <i class="fas fa-chevron-left" id="toggleIcon"></i>
+        </button>
+
+        <div class="menu-container">
+          <ul class="menu-list">
+            <li class="menu-item active">
+              <a href="#" class="menu-link" data-page="home">
+                <i class="fas fa-home"></i>
+                <span class="menu-text">Trang chủ</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="#" class="menu-link" data-page="create-post">
+                <i class="fas fa-plus-circle"></i>
+                <span class="menu-text">Đăng bài</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="#" class="menu-link" data-page="profile">
+                <i class="fas fa-user"></i>
+                <span class="menu-text">Trang cá nhân</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="#" class="menu-link" data-page="groups">
+                <i class="fas fa-users"></i>
+                <span class="menu-text">Nhóm</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="#" class="menu-link" data-page="saved">
+                <i class="fas fa-bookmark"></i>
+                <span class="menu-text">Đã lưu</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="#" class="menu-link" data-page="stats">
+                <i class="fas fa-chart-line"></i>
+                <span class="menu-text">Thống kê</span>
+              </a>
+            </li>
+          </ul>
+
+          <div class="menu-divider"></div>
+
+          <ul class="menu-list">
+            <li class="menu-item">
+              <a href="#" class="menu-link" data-page="settings">
+                <i class="fas fa-cog"></i>
+                <span class="menu-text">Cài đặt</span>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="#" class="menu-link logout" data-page="logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span class="menu-text">Đăng xuất</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Thông tin user hiện tại ở sidebar (FIX 11+12) -->
+        <div class="sidebar-user-info" id="sidebarUserInfo">
+          <img id="sidebarUserAvatar" src="https://i.pravatar.cc/150?img=11" alt="User" />
+          <div class="user-info">
+            <h4 id="sidebarUserName">Đang tải...</h4>
+            <span class="user-status"><span class="status-dot online" style="position:static;display:inline-block;margin-right:4px"></span>Đang hoạt động</span>
+          </div>
+        </div>
+
+        <!-- Mini icons khi thu nhỏ -->
+        <div class="mini-icons" id="miniIcons">
+          <i class="fas fa-home active" data-page="home" title="Trang chủ"></i>
+          <i
+            class="fas fa-plus-circle"
+            data-page="create-post"
+            title="Đăng bài"
+          ></i>
+          <i class="fas fa-user" data-page="profile" title="Trang cá nhân"></i>
+          <i class="fas fa-users" data-page="groups" title="Nhóm"></i>
+          <i
+            class="fas fa-sign-out-alt logout-icon"
+            data-page="logout"
+            title="Đăng xuất"
+          ></i>
+        </div>
+      </nav>
+
+      <!-- ==================== PANEL 2: NEWSFEED ==================== -->
+      <main class="newsfeed" id="newsfeed">
+        <!-- Create Post Section (Ẩn mặc định, hiện khi click Đăng bài) -->
+        <div
+          class="create-post-section glass"
+          id="createPostSection"
+          style="display: none"
+        >
+          <div class="create-post-header">
+            <h3><i class="fas fa-pen-fancy"></i> Tạo bài viết mới</h3>
+            <button class="close-btn glass-btn" id="closeCreatePost">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="create-post-content">
+            <div class="post-input-area">
+              <img
+                src="https://i.pravatar.cc/150?img=11"
+                alt="User"
+                class="post-avatar-large"
+              />
+              <textarea
+                id="postContent"
+                placeholder="Bạn đang nghĩ gì, User?"
+              ></textarea>
+              <div id="imagePreview" style="margin-top: 10px"></div>
+            </div>
+            <div class="post-options">
+              <span>Thêm vào bài viết:</span>
+              <div class="post-option-btns">
+                <button
+                  class="option-btn"
+                  id="btnChooseImage"
+                  title="Ảnh/Video"
+                >
+                  <i class="fas fa-image" style="color: #45bd62"></i>
+                </button>
+                <button class="option-btn" title="Cảm xúc">
+                  <i class="fas fa-smile" style="color: #f7b928"></i>
+                </button>
+                <button class="option-btn" title="Check-in">
+                  <i class="fas fa-map-marker-alt" style="color: #f5533d"></i>
+                </button>
+              </div>
+            </div>
+            <div>
+              <select id="postVisibility">
+                <option value="public">Công khai</option>
+                <option value="followers">Chỉ follower</option>
+                <option value="private">Riêng tư</option>
+              </select>
+            </div>
+            <button class="btn-publish" id="btnPublish">
+              <i class="fas fa-paper-plane"></i> Đăng bài
+            </button>
+          </div>
+        </div>
+
+        <!-- Posts Feed -->
+        <div class="posts-container" id="postsContainer"><!-- skeleton sẽ được JS inject --></div>
+      </main>
+
+      <!-- ==================== PANEL 3: RIGHT SIDEBAR (Friends Online) ==================== -->
+      <aside class="sidebar-right glass" id="sidebarRight">
+        <!-- Toggle button cho sidebar phải -->
+        <button
+          class="toggle-btn-right glass-btn"
+          id="toggleSidebarRight"
+          title="Thu nhỏ/Mở rộng"
+        >
+          <i class="fas fa-chevron-right" id="toggleIconRight"></i>
+        </button>
+
+        <div class="sidebar-right-content" id="sidebarRightContent">
+          <div class="widget">
+            <h3 class="widget-title">
+              <i class="fas fa-fire"></i>
+              Xu hướng
+            </h3>
+            <ul class="trending-list">
+              <li class="trending-item">
+                <span class="trend-rank">1</span>
+                <div class="trend-info">
+                  <span class="trend-topic">#Glassmorphism</span>
+                  <span class="trend-posts">12.5K posts</span>
+                </div>
+              </li>
+              <li class="trending-item">
+                <span class="trend-rank">2</span>
+                <div class="trend-info">
+                  <span class="trend-topic">#CodingLife</span>
+                  <span class="trend-posts">8.2K posts</span>
+                </div>
+              </li>
+              <li class="trending-item">
+                <span class="trend-rank">3</span>
+                <div class="trend-info">
+                  <span class="trend-topic">#WeekendVibes</span>
+                  <span class="trend-posts">5.1K posts</span>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="widget">
+            <h3 class="widget-title">
+              <i class="fas fa-user-friends"></i>
+              Bạn bè online
+              <span class="online-count">(5)</span>
+            </h3>
+            <ul class="friends-list">
+              <li class="friend-item">
+                <div class="friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=32" alt="Friend" />
+                  <span class="status-dot online"></span>
+                </div>
+                <div class="friend-info">
+                  <span class="friend-name">Minh Anh</span>
+                  <span class="friend-status">Đang hoạt động</span>
+                </div>
+                <button class="message-btn glass-btn">
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+              <li class="friend-item">
+                <div class="friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=12" alt="Friend" />
+                  <span class="status-dot online"></span>
+                </div>
+                <div class="friend-info">
+                  <span class="friend-name">Hoàng Nam</span>
+                  <span class="friend-status">Đang lập trình...</span>
+                </div>
+                <button class="message-btn glass-btn">
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+              <li class="friend-item">
+                <div class="friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=5" alt="Friend" />
+                  <span class="status-dot online"></span>
+                </div>
+                <div class="friend-info">
+                  <span class="friend-name">Thu Hà</span>
+                  <span class="friend-status">Online</span>
+                </div>
+                <button class="message-btn glass-btn">
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+              <li class="friend-item">
+                <div class="friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=9" alt="Friend" />
+                  <span class="status-dot away"></span>
+                </div>
+                <div class="friend-info">
+                  <span class="friend-name">Đức Huy</span>
+                  <span class="friend-status">Away</span>
+                </div>
+                <button class="message-btn glass-btn">
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+              <li class="friend-item">
+                <div class="friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=20" alt="Friend" />
+                  <span class="status-dot online"></span>
+                </div>
+                <div class="friend-info">
+                  <span class="friend-name">Lan Chi</span>
+                  <span class="friend-status">Đang nghe nhạc 🎵</span>
+                </div>
+                <button class="message-btn glass-btn">
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+            </ul>
+          </div>
+
+          <div class="widget suggestions">
+            <h3 class="widget-title">
+              <i class="fas fa-user-plus"></i>
+              Gợi ý kết bạn
+            </h3>
+            <ul class="suggestion-list">
+              <li class="suggestion-item">
+                <img src="https://i.pravatar.cc/150?img=15" alt="Suggest" />
+                <div class="suggestion-info">
+                  <span class="suggestion-name">Quang Minh</span>
+                  <span class="mutual-friends">3 bạn chung</span>
+                </div>
+                <button class="add-btn glass-btn">
+                  <i class="fas fa-user-plus"></i>
+                </button>
+              </li>
+              <li class="suggestion-item">
+                <img src="https://i.pravatar.cc/150?img=25" alt="Suggest" />
+                <div class="suggestion-info">
+                  <span class="suggestion-name">Thanh Tâm</span>
+                  <span class="mutual-friends">5 bạn chung</span>
+                </div>
+                <button class="add-btn glass-btn">
+                  <i class="fas fa-user-plus"></i>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Mini content khi sidebar phải thu nhỏ -->
+        <div class="mini-friends" id="miniFriends">
+          <div class="mini-friend-avatar" title="Minh Anh">
+            <img src="https://i.pravatar.cc/150?img=32" alt="Friend" />
+            <span class="status-dot online mini-status"></span>
+          </div>
+          <div class="mini-friend-avatar" title="Hoàng Nam">
+            <img src="https://i.pravatar.cc/150?img=12" alt="Friend" />
+            <span class="status-dot online mini-status"></span>
+          </div>
+          <div class="mini-friend-avatar" title="Thu Hà">
+            <img src="https://i.pravatar.cc/150?img=5" alt="Friend" />
+            <span class="status-dot online mini-status"></span>
+          </div>
+          <div class="mini-friend-avatar" title="Đức Huy">
+            <img src="https://i.pravatar.cc/150?img=9" alt="Friend" />
+            <span class="status-dot away mini-status"></span>
+          </div>
+          <div class="mini-friend-avatar" title="Lan Chi">
+            <img src="https://i.pravatar.cc/150?img=20" alt="Friend" />
+            <span class="status-dot online mini-status"></span>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- POST MODAL -->
+    <div id="postModal" class="modal hidden">
+      <div class="modal-content" id="modalContent"></div>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
