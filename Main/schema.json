@@ -1,0 +1,27 @@
+{
+  "users": {
+    "user_1": {
+      "userName": "Khang",
+      "avatar": "url",
+      "followersCount": 0,
+      "followingCount": 0,
+      "postCount": 0,
+      "createdAt": "2026-01-01"
+    }
+  },
+
+  "posts": {
+    "post_1": {
+      "content": "Hello world",
+      "userId": "user_1",
+      "user": {
+        "userName": "Khang",
+        "avatar": "url"
+      },
+      "visibility": "public",
+      "likeCount": 0,
+      "commentCount": 0,
+      "createdAt": "2026-01-01"
+    }
+  }
+}

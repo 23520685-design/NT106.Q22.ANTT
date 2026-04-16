@@ -1,0 +1,30 @@
+############ MAIN ##############
+# Build
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.csproj.user
+
+# NuGet
+packages/
+
+# Firebase secret
+*firebase-adminsdk*.json
+
+# Ignore toàn bộ Config (theo ý bạn)
+Config/
+
+# File local
+*.local.json
+.env
+
+# Certificate
+*.pfx
+
+# Test UI
+UI_0/
+UI_1/
