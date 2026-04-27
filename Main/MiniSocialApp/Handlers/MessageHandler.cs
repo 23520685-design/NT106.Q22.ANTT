@@ -6,11 +6,16 @@ public class MessageHandler
 {
     private readonly PostController _postController;
     private readonly LikeController _likeController;
+    private readonly UserController _userController;
 
-    public MessageHandler(PostController postController, LikeController likeController)
+    public MessageHandler(
+    PostController postController,
+    LikeController likeController,
+    UserController userController)
     {
         _postController = postController;
         _likeController = likeController;
+        _userController = userController;
     }
 
     public async Task<string> Handle(string json)
@@ -35,6 +40,11 @@ public class MessageHandler
                 case "TOGGLE_LIKE":
                     return JsonConvert.SerializeObject(
                         await _likeController.ToggleLike(msg.data)
+                    );
+
+                case "SEARCH_USER":
+                    return JsonConvert.SerializeObject(
+                        await _userController.SearchUsers(msg.data)
                     );
 
                 default:

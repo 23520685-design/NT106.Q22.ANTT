@@ -56,9 +56,14 @@ namespace MiniSocialApp
             // ✅ FIX 7: Inject LikeService vào LikeController – dùng chung firestoreContext
             var likeService = new LikeService(firestoreContext);
             var likeController = new LikeController(likeService);
-            _messageHandler = new MessageHandler(postController, likeController);
 
-            var path = Path.Combine(Application.StartupPath, "UI", "home.html");
+            var userService = new UserService(firestoreContext);
+            var userController = new UserController(userService);
+
+            _messageHandler = new MessageHandler(postController, likeController, userController);
+
+
+            var path = Path.Combine(Application.StartupPath, "UI", "Home", "home.html");
             webView21.Source = new Uri(path);
 
             // Sau khi trang HTML load xong → gửi thông tin user xuống JS
