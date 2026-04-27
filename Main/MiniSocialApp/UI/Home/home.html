@@ -23,7 +23,12 @@
 
       <div class="search-box glass-input">
         <i class="fas fa-search"></i>
-        <input type="text" placeholder="Tìm kiếm..." />
+        <input
+          id="searchInput"
+          type="text"
+          placeholder="Tìm kiếm người dùng..."
+        />
+        <div id="searchResults" class="search-results hidden"></div>
       </div>
 
       <div class="user-actions">
@@ -113,10 +118,24 @@
 
         <!-- Thông tin user hiện tại ở sidebar (FIX 11+12) -->
         <div class="sidebar-user-info" id="sidebarUserInfo">
-          <img id="sidebarUserAvatar" src="https://i.pravatar.cc/150?img=11" alt="User" />
+          <img
+            id="sidebarUserAvatar"
+            src="https://i.pravatar.cc/150?img=11"
+            alt="User"
+          />
           <div class="user-info">
             <h4 id="sidebarUserName">Đang tải...</h4>
-            <span class="user-status"><span class="status-dot online" style="position:static;display:inline-block;margin-right:4px"></span>Đang hoạt động</span>
+            <span class="user-status"
+              ><span
+                class="status-dot online"
+                style="
+                  position: static;
+                  display: inline-block;
+                  margin-right: 4px;
+                "
+              ></span
+              >Đang hoạt động</span
+            >
           </div>
         </div>
 
@@ -197,7 +216,9 @@
         </div>
 
         <!-- Posts Feed -->
-        <div class="posts-container" id="postsContainer"><!-- skeleton sẽ được JS inject --></div>
+        <div class="posts-container" id="postsContainer">
+          <!-- skeleton sẽ được JS inject -->
+        </div>
       </main>
 
       <!-- ==================== PANEL 3: RIGHT SIDEBAR (Friends Online) ==================== -->

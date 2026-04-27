@@ -60,6 +60,10 @@ function showLoadingSkeleton() {
 // RENDER FEED
 // ============================================================
 let _renderedPostIds = new Set();
+// Modal hiện tại đang mở post nào (dùng để cập nhật comment realtime nếu có)
+let _currentModalPostId = null;
+let _currentModalPostElement = null;
+let _commentsCache = {};
 
 function buildPostHTML(post) {
   const isLiked = post.isLiked === true;
@@ -224,23 +228,32 @@ function renderFeed(posts) {
 // ============================================================
 // BIND EVENTS SAU KHI RENDER
 // ============================================================
-function bindPostEvents() {
-  document.querySelectorAll(".post-btn").forEach((btn) => {
-    btn.onclick = function (e) {
+
+// Hàm này sẽ được gọi sau khi mở modal để bind các nút like/comment/share trong modal
+function bindModalPostActions(modalContent) {
+  if (!modalContent) return;
+
+  const modalPost = modalContent.querySelector(".post");
+  if (!modalPost) return;
+
+  const postId = modalPost.dataset ? modalPost.dataset.postId : null;
+  if (!postId) return;
+
+  const likeBtn = modalPost.querySelector(".like-btn");
+  const commentBtn = modalPost.querySelector(".comment-btn");
+  const shareBtn = modalPost.querySelector(".share-btn");
+
+  // LIKE trong modal
+  if (likeBtn) {
+    likeBtn.onclick = function (e) {
       e.stopPropagation();
-
-      const text = this.querySelector("span");
-      if (!text || text.textContent !== "Thích") return;
-
-      const post = this.closest(".post");
-      const postId = post && post.dataset ? post.dataset.postId : null;
-      if (!postId) return;
 
       if (this.dataset.loading === "true") return;
       this.dataset.loading = "true";
 
       const icon = this.querySelector("i");
 
+      // Optimistic UI: đổi giao diện trước cho mượt
       if (this.classList.contains("liked")) {
         this.classList.remove("liked");
         if (icon) {
@@ -255,11 +268,82 @@ function bindPostEvents() {
         }
       }
 
-      sendToCSharp({ type: "TOGGLE_LIKE", data: { postId: postId } });
+      sendToCSharp({
+        type: "TOGGLE_LIKE",
+        data: { postId: postId },
+      });
 
       setTimeout(() => {
         this.dataset.loading = "false";
       }, 100);
+    };
+  }
+
+  // COMMENT trong modal -> focus ô nhập bình luận
+  if (commentBtn) {
+    commentBtn.onclick = function (e) {
+      e.stopPropagation();
+      const input = document.getElementById("commentInput");
+      if (input) input.focus();
+    };
+  }
+
+  // SHARE tạm thời chưa có chức năng
+  if (shareBtn) {
+    shareBtn.onclick = function (e) {
+      e.stopPropagation();
+      showToast("Chức năng chia sẻ chưa được hỗ trợ");
+    };
+  }
+}
+
+// Hàm này bind các nút like/comment/share ở mỗi post trong feed (không phải trong modal)
+function bindPostEvents() {
+  document.querySelectorAll(".post-btn").forEach((btn) => {
+    btn.onclick = function (e) {
+      e.stopPropagation();
+
+      const post = this.closest(".post");
+      const postId = post && post.dataset ? post.dataset.postId : null;
+      if (!postId) return;
+
+      // LIKE
+      if (this.classList.contains("like-btn")) {
+        if (this.dataset.loading === "true") return;
+        this.dataset.loading = "true";
+
+        const icon = this.querySelector("i");
+
+        if (this.classList.contains("liked")) {
+          this.classList.remove("liked");
+          if (icon) {
+            icon.classList.remove("fas");
+            icon.classList.add("far");
+          }
+        } else {
+          this.classList.add("liked");
+          if (icon) {
+            icon.classList.remove("far");
+            icon.classList.add("fas");
+          }
+        }
+
+        sendToCSharp({ type: "TOGGLE_LIKE", data: { postId: postId } });
+
+        setTimeout(() => {
+          this.dataset.loading = "false";
+        }, 100);
+
+        return;
+      }
+
+      // COMMENT
+      if (this.classList.contains("comment-btn")) {
+        const modal = document.getElementById("postModal");
+        const modalContent = document.getElementById("modalContent");
+        openPostModal(post, modal, modalContent, true);
+        return;
+      }
     };
   });
 }
@@ -298,8 +382,12 @@ function bindModalEvents() {
 // ============================================================
 // MODAL
 // ============================================================
-function openPostModal(post, modal, modalContent) {
-  if (!modal || !modalContent) return;
+function openPostModal(post, modal, modalContent, autoFocusComment) {
+  if (!modal || !modalContent || !post) return;
+
+  const postId = post.dataset ? post.dataset.postId : null;
+  _currentModalPostId = postId;
+  _currentModalPostElement = post;
 
   const clone = post.cloneNode(true);
   const resizeHandle = clone.querySelector(".resize-handle");
@@ -317,15 +405,249 @@ function openPostModal(post, modal, modalContent) {
   modalContent.innerHTML = "";
   modalContent.appendChild(closeBtn);
   modalContent.appendChild(freshClone);
+  bindModalPostActions(modalContent);
+
+  if (postId) {
+    const wrapper = document.createElement("div");
+    wrapper.innerHTML = buildCommentsSectionHTML(postId);
+    modalContent.appendChild(wrapper.firstElementChild);
+  }
 
   modal.classList.remove("hidden");
   document.body.style.overflow = "hidden";
+
+  bindCommentEvents();
+
+  if (postId) {
+    requestComments(postId);
+  }
+
+  if (autoFocusComment) {
+    setTimeout(() => {
+      const input = document.getElementById("commentInput");
+      if (input) input.focus();
+    }, 100);
+  }
 }
 
 function closePostModal(modal) {
   if (modal) {
     modal.classList.add("hidden");
     document.body.style.overflow = "";
+  }
+
+  _currentModalPostId = null;
+  _currentModalPostElement = null;
+}
+
+// ============================================================
+// COMMENT FUNCTIONS – global scope (gọi được từ openPostModal)
+// ============================================================
+function buildCommentHTML(comment) {
+  return `
+  <div class="comment-item" data-comment-id="${comment.commentId || ""}">
+    <img
+      class="comment-avatar"
+      src="${comment.avatar || "https://i.pravatar.cc/100?u=" + (comment.userId || "user")}"
+      alt="${comment.userName || "User"}"
+      onerror="this.src='https://i.pravatar.cc/100'"
+    />
+    <div class="comment-body">
+      <div class="comment-bubble">
+        <div class="comment-author">${comment.userName || "Ẩn danh"}</div>
+        <div class="comment-text">${comment.content || ""}</div>
+      </div>
+      <div class="comment-meta">${formatTime(comment.createdAt)}</div>
+    </div>
+  </div>
+  `;
+}
+
+function buildCommentsSectionHTML(postId) {
+  const avatarSrc =
+    window.currentUser && window.currentUser.avatar
+      ? window.currentUser.avatar
+      : "https://i.pravatar.cc/100?u=current";
+  return `
+  <section class="comments-section" data-post-id="${postId}">
+    <div class="comments-list" id="commentsList">
+      <div class="comments-loading">Đang tải bình luận...</div>
+    </div>
+    <div class="comment-input-wrap">
+      <img
+        class="comment-input-avatar"
+        src="${avatarSrc}"
+        alt="Bạn"
+        onerror="this.src='https://i.pravatar.cc/100'"
+      />
+      <div class="comment-input-box">
+        <textarea
+          id="commentInput"
+          class="comment-input"
+          placeholder="Viết bình luận..."
+          rows="2"
+        ></textarea>
+        <div class="comment-actions">
+          <button id="btnSendComment" class="btn-send-comment">
+            <i class="fas fa-paper-plane"></i> Gửi
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+  `;
+}
+
+function renderComments(postId, comments) {
+  const list = document.getElementById("commentsList");
+  if (!list) return;
+
+  if (!comments || comments.length === 0) {
+    list.innerHTML = `<div class="comments-empty">Chưa có bình luận nào.</div>`;
+    return;
+  }
+
+  let html = "";
+  comments.forEach(function (comment) {
+    html += buildCommentHTML(comment);
+  });
+
+  list.innerHTML = html;
+  list.scrollTop = list.scrollHeight;
+}
+
+function appendCommentToModal(comment) {
+  const list = document.getElementById("commentsList");
+  if (!list) return;
+
+  const empty = list.querySelector(".comments-empty");
+  const loading = list.querySelector(".comments-loading");
+  if (empty) empty.remove();
+  if (loading) loading.remove();
+
+  list.insertAdjacentHTML("beforeend", buildCommentHTML(comment));
+  list.scrollTop = list.scrollHeight;
+}
+
+function updatePostCommentCount(postId, commentCount) {
+  const posts = document.querySelectorAll(`[data-post-id="${postId}"]`);
+  posts.forEach(function (post) {
+    const commentEl = post.querySelector(".comments-shares span");
+    if (commentEl) {
+      commentEl.textContent = (commentCount || 0) + " bình luận";
+    }
+  });
+}
+
+function requestComments(postId) {
+  if (!postId) return;
+  sendToCSharp({
+    type: "GET_COMMENTS",
+    data: { postId: postId },
+  });
+}
+
+function submitComment() {
+  const input = document.getElementById("commentInput");
+  if (!input || !_currentModalPostId) return;
+
+  const content = input.value.trim();
+  if (!content) {
+    input.focus();
+    return;
+  }
+
+  const btn = document.getElementById("btnSendComment");
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...';
+  }
+
+  sendToCSharp({
+    type: "CREATE_COMMENT",
+    data: {
+      postId: _currentModalPostId,
+      content: content,
+    },
+  });
+}
+
+// ============================================================
+// SEARCH USER
+// ============================================================
+
+function searchUser(keyword) {
+  sendToCSharp({
+    type: "SEARCH_USER",
+    data: {
+      keyword: keyword,
+    },
+  });
+}
+
+function renderSearchResults(users) {
+  const box = document.getElementById("searchResults");
+  if (!box) return;
+
+  if (!users || users.length === 0) {
+    box.innerHTML = `<div class="search-empty">Không tìm thấy người dùng</div>`;
+    box.classList.remove("hidden");
+    return;
+  }
+
+  let html = "";
+
+  users.forEach((user) => {
+    html += `
+      <div class="search-result-item" data-user-id="${user.userId}">
+        <img 
+          src="${user.avatar || "https://i.pravatar.cc/150?u=" + user.userId}" 
+          alt="${user.userName || "User"}"
+          onerror="this.src='https://i.pravatar.cc/150'"
+        />
+        <div class="search-result-info">
+          <div class="search-result-name">${user.userName || "Ẩn danh"}</div>
+          <div class="search-result-sub">${user.phone || ""}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  box.innerHTML = html;
+  box.classList.remove("hidden");
+
+  document.querySelectorAll(".search-result-item").forEach((item) => {
+    item.onclick = function () {
+      const userId = this.dataset.userId;
+      showToast("Đã chọn user: " + userId);
+
+      // Sau này chỗ này sẽ mở profile
+      // sendToCSharp({ type: "GET_USER_PROFILE", data: { userId: userId } });
+    };
+  });
+}
+
+// ============================================================
+// COMMENT EVENTS – bind sau khi mở modal
+// ============================================================
+
+function bindCommentEvents() {
+  const btn = document.getElementById("btnSendComment");
+  const input = document.getElementById("commentInput");
+
+  if (btn) {
+    btn.onclick = function () {
+      submitComment();
+    };
+  }
+
+  if (input) {
+    input.onkeydown = function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        submitComment();
+      }
+    };
   }
 }
 
@@ -367,6 +689,49 @@ document.addEventListener("DOMContentLoaded", function () {
   const btnPublish = document.getElementById("btnPublish");
 
   let selectedImagePath = null;
+
+  // ---- Search user ----
+  // Tìm kiếm người dùng khi nhập vào ô search, có debounce 300ms để tránh gửi quá nhiều request
+  const searchInput = document.getElementById("searchInput");
+  const searchResults = document.getElementById("searchResults");
+  let searchTimer = null;
+
+  if (searchInput) {
+    searchInput.addEventListener("input", function () {
+      const keyword = this.value.trim();
+
+      clearTimeout(searchTimer);
+
+      if (!keyword) {
+        if (searchResults) {
+          searchResults.classList.add("hidden");
+          searchResults.innerHTML = "";
+        }
+        return;
+      }
+
+      searchTimer = setTimeout(() => {
+        searchUser(keyword);
+      }, 300);
+    });
+
+    searchInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+
+        const keyword = this.value.trim();
+        if (keyword) {
+          searchUser(keyword);
+        }
+      }
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (searchResults && !e.target.closest(".search-box")) {
+      searchResults.classList.add("hidden");
+    }
+  });
 
   // ---- Sidebar toggles ----
   const toggleSidebar = document.getElementById("toggleSidebar");
@@ -627,28 +992,30 @@ document.addEventListener("DOMContentLoaded", function () {
         const liked = data.liked;
         const likeCount = data.likeCount;
 
-        const post = document.querySelector(`[data-post-id="${postId}"]`);
-        if (!post) return;
+        const posts = document.querySelectorAll(`[data-post-id="${postId}"]`);
+        if (!posts || posts.length === 0) return;
 
-        const likeBtn = post.querySelector(".like-btn");
-        const icon = likeBtn ? likeBtn.querySelector("i") : null;
-        const countEl = post.querySelector(".reactions span:last-child");
+        posts.forEach((post) => {
+          const likeBtn = post.querySelector(".like-btn");
+          const icon = likeBtn ? likeBtn.querySelector("i") : null;
+          const countEl = post.querySelector(".reactions span:last-child");
 
-        if (likeBtn && icon) {
-          if (liked) {
-            likeBtn.classList.add("liked");
-            icon.classList.remove("far");
-            icon.classList.add("fas");
-          } else {
-            likeBtn.classList.remove("liked");
-            icon.classList.remove("fas");
-            icon.classList.add("far");
+          if (likeBtn && icon) {
+            if (liked) {
+              likeBtn.classList.add("liked");
+              icon.classList.remove("far");
+              icon.classList.add("fas");
+            } else {
+              likeBtn.classList.remove("liked");
+              icon.classList.remove("fas");
+              icon.classList.add("far");
+            }
           }
-        }
 
-        if (countEl) {
-          countEl.textContent = (likeCount || 0) + " lượt thích";
-        }
+          if (countEl) {
+            countEl.textContent = (likeCount || 0) + " lượt thích";
+          }
+        });
 
         return;
       }
@@ -687,6 +1054,45 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      // COMMENTS DATA
+      if (msg.type === "COMMENTS_DATA") {
+        const data = msg.data || {};
+        const postId = data.postId;
+        const comments = data.comments || [];
+
+        _commentsCache[postId] = comments;
+        renderComments(postId, comments);
+        return;
+      }
+
+      // CREATE COMMENT SUCCESS
+      if (msg.type === "CREATE_COMMENT_SUCCESS") {
+        const data = msg.data || {};
+        const postId = data.postId;
+
+        if (!_commentsCache[postId]) {
+          _commentsCache[postId] = [];
+        }
+
+        _commentsCache[postId].push(data);
+        appendCommentToModal(data);
+        updatePostCommentCount(postId, data.commentCount || 0);
+
+        const input = document.getElementById("commentInput");
+        if (input) {
+          input.value = "";
+          input.focus();
+        }
+
+        const btn = document.getElementById("btnSendComment");
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi';
+        }
+
+        return;
+      }
+
       // IMAGE SELECTED
       if (msg.type === "IMAGE_SELECTED") {
         const previewEl = document.getElementById("imagePreview");
@@ -719,11 +1125,24 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      // SEARCH USER RESULT
+      if (msg.type === "SEARCH_USER_RESULT") {
+        renderSearchResults(msg.data || []);
+        return;
+      }
+
       // ERROR
       if (msg.type === "ERROR") {
         if (btnPublish) {
           btnPublish.innerHTML = '<i class="fas fa-paper-plane"></i> Đăng bài';
           btnPublish.disabled = false;
+        }
+
+        // Reset nút gửi comment nếu gửi comment bị lỗi
+        const sendBtn = document.getElementById("btnSendComment");
+        if (sendBtn) {
+          sendBtn.disabled = false;
+          sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi';
         }
 
         showToast(msg.message || "Có lỗi xảy ra");
