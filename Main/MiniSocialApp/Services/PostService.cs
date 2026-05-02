@@ -46,8 +46,7 @@ namespace MiniSocialApp.Services
 
             if (!string.IsNullOrWhiteSpace(imagePath))
             {
-                StorageService storageService = new StorageService();
-                mediaUrl = await storageService.UploadImage(imagePath);
+                mediaUrl = await _storageService.UploadImage(imagePath);
             }
 
             var post = new Dictionary<string, object>

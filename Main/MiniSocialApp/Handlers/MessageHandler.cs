@@ -7,15 +7,18 @@ public class MessageHandler
     private readonly PostController _postController;
     private readonly LikeController _likeController;
     private readonly UserController _userController;
+    private readonly CommentController _commentController;
 
     public MessageHandler(
     PostController postController,
     LikeController likeController,
-    UserController userController)
+    UserController userController,
+    CommentController commentController)
     {
         _postController = postController;
         _likeController = likeController;
         _userController = userController;
+        _commentController = commentController;
     }
 
     public async Task<string> Handle(string json)
@@ -45,6 +48,16 @@ public class MessageHandler
                 case "SEARCH_USER":
                     return JsonConvert.SerializeObject(
                         await _userController.SearchUsers(msg.data)
+                    );
+
+                case "GET_COMMENTS":
+                    return JsonConvert.SerializeObject(
+                        await _commentController.GetComments(msg.data)
+                    );
+
+                case "CREATE_COMMENT":
+                    return JsonConvert.SerializeObject(
+                        await _commentController.CreateComment(msg.data)
                     );
 
                 default:
