@@ -27,6 +27,15 @@ function formatTime(ts) {
   return date.toLocaleString("vi-VN");
 }
 
+function escapeHTML(value) {
+  return String(value || "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 // ============================================================
 // SKELETON LOADER
 // ============================================================
@@ -81,11 +90,11 @@ function buildPostHTML(post) {
 
       <div class="post-header">
         <div class="post-author">
-          <img src="${post.avatar || "https://i.pravatar.cc/150?u=" + post.userId}"
+          <img src="${escapeHTML(post.avatar || "https://i.pravatar.cc/150?u=" + post.userId)}"
                onerror="this.src='https://i.pravatar.cc/150'"
-               alt="${post.userName || "User"}" />
+               alt="${escapeHTML(post.userName || "User")}" />
           <div class="author-info">
-            <h4>${post.userName || "Ẩn danh"}</h4>
+            <h4>${escapeHTML(post.userName || "Ẩn danh")}</h4>
             <span>${formatTime(post.createdAt)}${visIcon}</span>
           </div>
         </div>
@@ -95,10 +104,10 @@ function buildPostHTML(post) {
       </div>
 
       <div class="post-content">
-        <p>${post.content || ""}</p>
+        <p>${escapeHTML(post.content || "")}</p>
         ${
           post.mediaUrl
-            ? `<div class="post-image"><img src="${post.mediaUrl}" alt="Ảnh bài viết" loading="lazy" /></div>`
+            ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
             : ""
         }
       </div>
@@ -448,14 +457,14 @@ function buildCommentHTML(comment) {
   <div class="comment-item" data-comment-id="${comment.commentId || ""}">
     <img
       class="comment-avatar"
-      src="${comment.avatar || "https://i.pravatar.cc/100?u=" + (comment.userId || "user")}"
-      alt="${comment.userName || "User"}"
+      src="${escapeHTML(comment.avatar || "https://i.pravatar.cc/100?u=" + (comment.userId || "user"))}"
+      alt="${escapeHTML(comment.userName || "User")}"
       onerror="this.src='https://i.pravatar.cc/100'"
     />
     <div class="comment-body">
       <div class="comment-bubble">
-        <div class="comment-author">${comment.userName || "Ẩn danh"}</div>
-        <div class="comment-text">${comment.content || ""}</div>
+        <div class="comment-author">${escapeHTML(comment.userName || "Ẩn danh")}</div>
+        <div class="comment-text">${escapeHTML(comment.content || "")}</div>
       </div>
       <div class="comment-meta">${formatTime(comment.createdAt)}</div>
     </div>
@@ -601,13 +610,13 @@ function renderSearchResults(users) {
     html += `
       <div class="search-result-item" data-user-id="${user.userId}">
         <img 
-          src="${user.avatar || "https://i.pravatar.cc/150?u=" + user.userId}" 
-          alt="${user.userName || "User"}"
+          src="${escapeHTML(user.avatar || "https://i.pravatar.cc/150?u=" + user.userId)}" 
+          alt="${escapeHTML(user.userName || "User")}"
           onerror="this.src='https://i.pravatar.cc/150'"
         />
         <div class="search-result-info">
-          <div class="search-result-name">${user.userName || "Ẩn danh"}</div>
-          <div class="search-result-sub">${user.phone || ""}</div>
+          <div class="search-result-name">${escapeHTML(user.userName || "Ẩn danh")}</div>
+          <div class="search-result-sub">${escapeHTML(user.phone || "")}</div>
         </div>
       </div>
     `;
@@ -1104,7 +1113,7 @@ document.addEventListener("DOMContentLoaded", function () {
           previewEl.innerHTML = `
             <div style="position:relative;width:100%;max-width:700px;margin-top:10px;">
               <img src="file:///${selectedImagePath}"
-                   style="width:100%;max-height:400px;object-fit:cover;border-radius:10px;display:block;" />
+                   style="width:100%;height:auto;object-fit:contain;border-radius:10px;display:block;" />
               <button id="removeImage" style="
                 position:absolute;top:8px;right:8px;background:rgba(0,0,0,0.6);
                 color:white;border:none;border-radius:50%;width:30px;height:30px;
