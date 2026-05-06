@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mini Social App - Profile</title>
+
+    <!-- Không import style.css của Home -->
+    <link rel="stylesheet" href="./profile-style.css" />
+
+    <!-- Dùng Font Awesome giống Home -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+  </head>
+
+  <body>
+    <header class="profile-top-panel profile-glass">
+      <div class="profile-logo-section">
+        <div class="profile-logo-mark">
+          <i class="fas fa-feather-alt"></i>
+        </div>
+        <span class="profile-logo-text">Mini Social App</span>
+      </div>
+
+      <div class="profile-search-wrap">
+        <div class="profile-search-box">
+          <i class="fas fa-search"></i>
+          <input
+            id="profileSearchInput"
+            type="text"
+            placeholder="Tìm kiếm người dùng..."
+            autocomplete="off"
+          />
+        </div>
+
+        <div
+          id="profileSearchResults"
+          class="profile-search-results hidden"
+        ></div>
+      </div>
+
+      <div class="profile-top-actions">
+        <button class="profile-top-btn" title="Thông báo">
+          <i class="fas fa-bell"></i>
+        </button>
+
+        <button class="profile-top-btn" title="Tin nhắn">
+          <i class="fas fa-envelope"></i>
+        </button>
+
+        <div class="profile-top-user">
+          <img
+            id="topUserAvatar"
+            src="https://i.pravatar.cc/150?img=11"
+            alt="User"
+          />
+          <span class="profile-online-dot"></span>
+        </div>
+      </div>
+    </header>
+
+    <div class="profile-main-container">
+      <!-- LEFT SIDEBAR -->
+      <nav class="profile-sidebar-left profile-glass" id="profileSidebarLeft">
+        <button class="profile-toggle-btn" id="toggleLeftSidebar">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+
+        <div class="profile-menu-container">
+          <ul class="profile-menu-list">
+            <li class="profile-menu-item">
+              <a href="#" class="profile-menu-link" data-page="home">
+                <i class="fas fa-home"></i>
+                <span class="profile-menu-text">Trang chủ</span>
+              </a>
+            </li>
+
+            <li class="profile-menu-item">
+              <a href="#" class="profile-menu-link" data-page="create-post">
+                <i class="fas fa-plus-circle"></i>
+                <span class="profile-menu-text">Đăng bài</span>
+              </a>
+            </li>
+
+            <li class="profile-menu-item active">
+              <a href="#" class="profile-menu-link" data-page="profile">
+                <i class="fas fa-user"></i>
+                <span class="profile-menu-text">Trang cá nhân</span>
+              </a>
+            </li>
+
+            <li class="profile-menu-item">
+              <a href="#" class="profile-menu-link" data-page="groups">
+                <i class="fas fa-users"></i>
+                <span class="profile-menu-text">Nhóm</span>
+              </a>
+            </li>
+
+            <li class="profile-menu-item">
+              <a href="#" class="profile-menu-link" data-page="saved">
+                <i class="fas fa-bookmark"></i>
+                <span class="profile-menu-text">Đã lưu</span>
+              </a>
+            </li>
+
+            <li class="profile-menu-item">
+              <a href="#" class="profile-menu-link" data-page="stats">
+                <i class="fas fa-chart-line"></i>
+                <span class="profile-menu-text">Thống kê</span>
+              </a>
+            </li>
+          </ul>
+
+          <div class="profile-menu-divider"></div>
+
+          <ul class="profile-menu-list">
+            <li class="profile-menu-item">
+              <a href="#" class="profile-menu-link" data-page="settings">
+                <i class="fas fa-cog"></i>
+                <span class="profile-menu-text">Cài đặt</span>
+              </a>
+            </li>
+
+            <li class="profile-menu-item">
+              <a href="#" class="profile-menu-link logout" data-page="logout">
+                <i class="fas fa-sign-out-alt"></i>
+                <span class="profile-menu-text">Đăng xuất</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+        <div class="profile-sidebar-user">
+          <img
+            id="sidebarUserAvatar"
+            src="https://i.pravatar.cc/150?img=11"
+            alt="User"
+          />
+
+          <div class="profile-sidebar-user-info">
+            <h4 id="sidebarUserName">Đang tải...</h4>
+            <span>
+              <span class="profile-user-status-dot"></span>
+              Đang hoạt động
+            </span>
+          </div>
+        </div>
+
+        <!-- Mini icon khi sidebar thu gọn, giống Home -->
+        <div class="profile-mini-icons" id="profileMiniIcons">
+          <i class="fas fa-home" data-page="home" title="Trang chủ"></i>
+          <i
+            class="fas fa-plus-circle"
+            data-page="create-post"
+            title="Đăng bài"
+          ></i>
+          <i
+            class="fas fa-user active"
+            data-page="profile"
+            title="Trang cá nhân"
+          ></i>
+          <i class="fas fa-users" data-page="groups" title="Nhóm"></i>
+          <i
+            class="fas fa-sign-out-alt profile-logout-icon"
+            data-page="logout"
+            title="Đăng xuất"
+          ></i>
+        </div>
+      </nav>
+
+      <!-- CENTER -->
+      <main class="profile-newsfeed">
+        <!-- PROFILE COVER -->
+        <section class="profile-cover-card profile-glass">
+          <div class="profile-cover-image">
+            <button class="profile-cover-btn" id="btnChangeCover">
+              <i class="fas fa-camera"></i>
+              Đổi ảnh bìa
+            </button>
+
+            <div class="profile-avatar-box">
+              <img
+                id="profileAvatar"
+                src="https://i.pravatar.cc/180?img=11"
+                alt="Avatar"
+              />
+            </div>
+          </div>
+
+          <div class="profile-info-row">
+            <div class="profile-user-info">
+              <h1 id="profileUserName">Đang tải...</h1>
+              <p id="profileUserBio">Mini Social App</p>
+            </div>
+
+            <div class="profile-action-row">
+              <button class="profile-primary-btn" id="btnAddStory">
+                <i class="fas fa-plus"></i>
+                Thêm tin
+              </button>
+
+              <button class="profile-secondary-btn" id="btnEditProfile">
+                <i class="fas fa-pen"></i>
+                Chỉnh sửa hồ sơ
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROFILE TABS -->
+        <section class="profile-tab-bar profile-glass">
+          <button class="profile-tab active" data-tab="posts">
+            Bài viết
+          </button>
+
+          <button class="profile-tab" data-tab="about">
+            Giới thiệu
+          </button>
+
+          <button class="profile-tab" data-tab="friends">
+            Bạn bè
+          </button>
+
+          <button class="profile-tab" data-tab="photos">
+            Ảnh
+          </button>
+
+          <button class="profile-tab" data-tab="videos">
+            Video
+          </button>
+        </section>
+
+        <!-- TAB CONTENT -->
+        <section id="profileTabContent" class="profile-tab-content">
+          <div id="profilePostsContainer" class="profile-posts-container">
+            <article class="profile-post-card profile-glass">
+              <div class="profile-post-header">
+                <div class="profile-post-author">
+                  <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" />
+                  <div>
+                    <h4>Khang Hoàng</h4>
+                    <span>Vừa xong · Công khai</span>
+                  </div>
+                </div>
+
+                <button class="profile-more-btn">
+                  <i class="fas fa-ellipsis-h"></i>
+                </button>
+              </div>
+
+              <div class="profile-post-content">
+                <p>
+                  Đây là giao diện Profile được viết riêng, đồng bộ màu với Home
+                  nhưng không import trực tiếp từ Home.
+                </p>
+              </div>
+
+              <div class="profile-post-image"></div>
+
+              <div class="profile-post-stats">
+                <span>12 lượt thích</span>
+                <span>5 bình luận</span>
+              </div>
+
+              <div class="profile-post-actions">
+                <button class="profile-like-btn">
+                  <i class="far fa-thumbs-up"></i>
+                  Thích
+                </button>
+
+                <button class="profile-comment-btn">
+                  <i class="far fa-comment-alt"></i>
+                  Bình luận
+                </button>
+
+                <button class="profile-share-btn">
+                  <i class="far fa-share-square"></i>
+                  Chia sẻ
+                </button>
+              </div>
+            </article>
+
+            <article class="profile-post-card profile-glass">
+              <div class="profile-post-header">
+                <div class="profile-post-author">
+                  <img src="https://i.pravatar.cc/150?img=11" alt="Avatar" />
+                  <div>
+                    <h4>Khang Hoàng</h4>
+                    <span>2 giờ trước · Bạn bè</span>
+                  </div>
+                </div>
+
+                <button class="profile-more-btn">
+                  <i class="fas fa-ellipsis-h"></i>
+                </button>
+              </div>
+
+              <div class="profile-post-content">
+                <p>
+                  Layout Profile gồm menu bên trái, phần hồ sơ và bài viết ở
+                  giữa, thống kê và bạn bè hoạt động bên phải.
+                </p>
+              </div>
+
+              <div class="profile-post-stats">
+                <span>28 lượt thích</span>
+                <span>9 bình luận</span>
+              </div>
+
+              <div class="profile-post-actions">
+                <button class="profile-like-btn">
+                  <i class="far fa-thumbs-up"></i>
+                  Thích
+                </button>
+
+                <button class="profile-comment-btn">
+                  <i class="far fa-comment-alt"></i>
+                  Bình luận
+                </button>
+
+                <button class="profile-share-btn">
+                  <i class="far fa-share-square"></i>
+                  Chia sẻ
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+      </main>
+
+      <!-- RIGHT SIDEBAR -->
+      <aside
+        class="profile-sidebar-right profile-glass"
+        id="profileSidebarRight"
+      >
+        <button class="profile-toggle-btn-right" id="toggleRightSidebar">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+
+        <div class="profile-right-content">
+          <section class="profile-widget profile-stats-widget">
+            <h3>
+              <i class="fas fa-chart-line"></i>
+              Thống kê bài viết
+            </h3>
+
+            <div class="profile-stat-grid">
+              <div class="profile-stat-item">
+                <strong id="statPosts">24</strong>
+                <span>Bài viết</span>
+              </div>
+
+              <div class="profile-stat-item">
+                <strong id="statFriends">156</strong>
+                <span>Bạn bè</span>
+              </div>
+
+              <div class="profile-stat-item">
+                <strong id="statLikes">1.2K</strong>
+                <span>Lượt thích</span>
+              </div>
+
+              <div class="profile-stat-item">
+                <strong id="statComments">86</strong>
+                <span>Bình luận</span>
+              </div>
+            </div>
+
+            <div class="profile-line-chart-card">
+              <div class="profile-chart-head">
+                <div>
+                  <strong>Tương tác trong tuần</strong>
+                  <span>Lượt thích và bình luận</span>
+                </div>
+
+                <span class="profile-chart-total">+18%</span>
+              </div>
+
+              <div class="profile-line-chart">
+                <div class="chart-grid-line"></div>
+                <div class="chart-grid-line"></div>
+                <div class="chart-grid-line"></div>
+
+                <svg
+                  viewBox="0 0 300 120"
+                  preserveAspectRatio="none"
+                  aria-label="Biểu đồ tương tác"
+                >
+                  <polyline
+                    class="chart-area"
+                    points="0,96 50,82 100,88 150,54 200,62 250,34 300,44 300,120 0,120"
+                  ></polyline>
+
+                  <polyline
+                    class="chart-line"
+                    points="0,96 50,82 100,88 150,54 200,62 250,34 300,44"
+                  ></polyline>
+
+                  <circle class="chart-point" cx="0" cy="96" r="4"></circle>
+                  <circle class="chart-point" cx="50" cy="82" r="4"></circle>
+                  <circle class="chart-point" cx="100" cy="88" r="4"></circle>
+                  <circle class="chart-point" cx="150" cy="54" r="4"></circle>
+                  <circle class="chart-point" cx="200" cy="62" r="4"></circle>
+                  <circle class="chart-point" cx="250" cy="34" r="4"></circle>
+                  <circle class="chart-point" cx="300" cy="44" r="4"></circle>
+                </svg>
+              </div>
+
+              <div class="profile-chart-labels">
+                <span>T2</span>
+                <span>T3</span>
+                <span>T4</span>
+                <span>T5</span>
+                <span>T6</span>
+                <span>T7</span>
+                <span>CN</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="profile-widget">
+            <div class="profile-widget-title-row">
+              <h3>
+                <i class="fas fa-user-friends"></i>
+                Bạn bè hoạt động
+              </h3>
+
+              <button id="btnViewAllFriends">Xem tất cả</button>
+            </div>
+
+            <ul class="profile-friend-list">
+              <li class="profile-friend-item">
+                <div class="profile-friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=32" alt="Friend" />
+                  <span class="profile-online-dot mini"></span>
+                </div>
+
+                <div>
+                  <strong>Minh Anh</strong>
+                  <span>Đang hoạt động</span>
+                </div>
+
+                <button>
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+
+              <li class="profile-friend-item">
+                <div class="profile-friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=12" alt="Friend" />
+                  <span class="profile-online-dot mini"></span>
+                </div>
+
+                <div>
+                  <strong>Hoàng Nam</strong>
+                  <span>5 phút trước</span>
+                </div>
+
+                <button>
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+
+              <li class="profile-friend-item">
+                <div class="profile-friend-avatar">
+                  <img src="https://i.pravatar.cc/150?img=5" alt="Friend" />
+                  <span class="profile-online-dot mini"></span>
+                </div>
+
+                <div>
+                  <strong>Thu Hà</strong>
+                  <span>15 phút trước</span>
+                </div>
+
+                <button>
+                  <i class="fas fa-comment"></i>
+                </button>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </aside>
+    </div>
+
+    <!-- CREATE POST MODAL -->
+    <div id="profilePostModal" class="profile-modal hidden">
+      <div class="profile-modal-card">
+        <div class="profile-modal-header">
+          <h3>
+            <i class="fas fa-pen-fancy"></i>
+            Tạo bài viết
+          </h3>
+
+          <button id="closeCreatePostModal">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <div class="profile-modal-author">
+          <img
+            id="modalAuthorAvatar"
+            src="https://i.pravatar.cc/150?img=11"
+            alt="Avatar"
+          />
+
+          <div>
+            <strong id="modalAuthorName">Bạn</strong>
+
+            <select id="profilePostVisibility">
+              <option value="public">🌐 Công khai</option>
+              <option value="followers">👥 Chỉ follower</option>
+              <option value="private">🔒 Riêng tư</option>
+            </select>
+          </div>
+        </div>
+
+        <textarea
+          id="profilePostContent"
+          placeholder="Bạn đang nghĩ gì?"
+          rows="5"
+        ></textarea>
+
+        <div id="profileImagePreview" class="profile-image-preview"></div>
+
+        <div class="profile-modal-tools">
+          <span>Thêm vào bài viết</span>
+
+          <div>
+            <button id="btnChooseProfileImage">
+              <i class="fas fa-image"></i>
+              Ảnh
+            </button>
+
+            <button type="button">
+              <i class="fas fa-smile"></i>
+              Cảm xúc
+            </button>
+
+            <button type="button">
+              <i class="fas fa-map-marker-alt"></i>
+              Vị trí
+            </button>
+          </div>
+        </div>
+
+        <div class="profile-modal-footer">
+          <button class="profile-secondary-btn" id="cancelCreatePost">
+            Hủy
+          </button>
+
+          <button class="profile-primary-btn" id="btnPublishProfilePost">
+            <i class="fas fa-paper-plane"></i>
+            Đăng bài
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="profileToast" class="profile-toast"></div>
+
+    <script src="./profile.js"></script>
+  </body>
+</html>
