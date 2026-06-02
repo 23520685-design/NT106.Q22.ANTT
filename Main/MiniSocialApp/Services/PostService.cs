@@ -80,21 +80,19 @@ namespace MiniSocialApp.Services
                 : "";
 
             var allPosts = snapshot.Documents
-    .Select(doc =>
-    {
-        var data = doc.ToDictionary();
-        data["postId"] = doc.Id;
+                .Select(doc =>
+                {
+                    var data = doc.ToDictionary();
+                    data["postId"] = doc.Id;
 
-        // Replace this block in GetFeed():
-        if (data.ContainsKey("createdAt") && data["createdAt"] is Timestamp ts)
-        {
-            // data["createdAt"] = ts.Seconds; // <-- Remove this line
-            data["createdAt"] = ts.ToDateTime().ToUniversalTime(); // Store as UTC DateTime
-        }
+                    if (data.ContainsKey("createdAt") && data["createdAt"] is Timestamp ts)
+                    {
+                        data["createdAt"] = ts.ToDateTime().ToUniversalTime();
+                    }
 
-        return data;
-    })
-    .ToList();
+                    return data;
+                })
+                .ToList();
 
             // Ưu tiên bài mới nhất
             var newest = allPosts.Take(5).ToList();
@@ -114,6 +112,61 @@ namespace MiniSocialApp.Services
 
             var posts = newest.Concat(randomizedOlderPosts).ToList();
 
+            if (!string.IsNullOrEmpty(currentUserId))
+            {
+                var likeTasks = posts.Select(async post =>
+                {
+                    string postId = post["postId"]?.ToString();
+                    var likeSnap = await _db.Collection("posts")
+                        .Document(postId)
+                        .Collection("likes")
+                        .Document(currentUserId)
+                        .GetSnapshotAsync();
+
+                    post["isLiked"] = likeSnap.Exists;
+                    return post;
+                });
+
+                return (await Task.WhenAll(likeTasks)).ToList();
+            }
+
+            foreach (var post in posts)
+                post["isLiked"] = false;
+
+            return posts;
+        }
+
+        // Lấy tất cả bài viết của một user cụ thể
+        public async Task<List<Dictionary<string, object>>> GetUserPosts(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                return new List<Dictionary<string, object>>();
+
+            var snapshot = await _db.Collection("posts")
+                .WhereEqualTo("userId", userId)
+                .OrderByDescending("createdAt")
+                .Limit(50)
+                .GetSnapshotAsync();
+
+            var currentUserDict = CurrentUserStore.User as Dictionary<string, object>;
+            string currentUserId = currentUserDict != null && currentUserDict.ContainsKey("userId")
+                ? currentUserDict["userId"]?.ToString()
+                : "";
+
+            var posts = snapshot.Documents.Select(doc =>
+            {
+                var data = doc.ToDictionary();
+                data["postId"] = doc.Id;
+
+                if (data.ContainsKey("createdAt") && data["createdAt"] is Timestamp ts)
+                {
+                    data["createdAt"] = ts.ToDateTime().ToUniversalTime();
+                }
+
+                return data;
+            }).ToList();
+
+            // Kiểm tra isLiked cho current user
             if (!string.IsNullOrEmpty(currentUserId))
             {
                 var likeTasks = posts.Select(async post =>

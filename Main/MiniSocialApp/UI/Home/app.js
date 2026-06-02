@@ -105,11 +105,10 @@ function buildPostHTML(post) {
 
       <div class="post-content">
         <p>${escapeHTML(post.content || "")}</p>
-        ${
-          post.mediaUrl
-            ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
-            : ""
-        }
+        ${post.mediaUrl
+      ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
+      : ""
+    }
       </div>
 
       <div class="post-stats">
@@ -769,18 +768,25 @@ document.addEventListener("DOMContentLoaded", function () {
     });
     miniIcons.forEach((i) => i.classList.remove("active"));
   }
-
+  // chuyển trang
   function handlePageChange(page) {
     switch (page) {
       case "create-post":
         showCreatePost();
         break;
+
       case "home":
         showHome();
         break;
+
       case "logout":
         handleLogout();
         break;
+
+      case "profile":
+        sendToCSharp({ type: "NAVIGATE_PROFILE" });
+        break;
+
       default:
         if (createPostSection) createPostSection.style.display = "none";
         break;

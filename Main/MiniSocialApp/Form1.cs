@@ -60,7 +60,10 @@ namespace MiniSocialApp
             var userService = new UserService(firestoreContext);
             var userController = new UserController(userService);
 
-            _messageHandler = new MessageHandler(postController, likeController, userController);
+            var commentService = new CommentService(firestoreContext);
+            var commentController = new CommentController(commentService);
+
+            _messageHandler = new MessageHandler(postController, likeController, userController, commentController);
 
 
             var path = Path.Combine(Application.StartupPath, "UI", "Home", "home.html");
@@ -74,18 +77,28 @@ namespace MiniSocialApp
 
                 string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
                 string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
+                string userId = userDict.ContainsKey("userId") ? userDict["userId"]?.ToString() : "";
+                string bio = userDict.ContainsKey("bio") ? userDict["bio"]?.ToString() : "";
 
                 var msg = new
                 {
                     type = "USER_UPDATED",
-                    data = new { userName, avatar }
+                    data = new { userId, userName, avatar, bio }
                 };
 
                 string json = Newtonsoft.Json.JsonConvert.SerializeObject(msg);
                 webView21.CoreWebView2.PostWebMessageAsJson(json);
 
-                // ✅ Bắt đầu tự động refresh feed mỗi 15 giây
-                StartFeedPolling();
+                // Chỉ polling feed khi đang ở trang Home
+                string currentUrl = webView21.CoreWebView2.Source;
+                if (currentUrl != null && currentUrl.Contains("home.html"))
+                {
+                    StartFeedPolling();
+                }
+                else
+                {
+                    StopFeedPolling();
+                }
             };
 
 
@@ -117,6 +130,20 @@ namespace MiniSocialApp
                             );
                         }));
 
+                        return;
+                    }
+
+                    if (msg.type == "NAVIGATE_PROFILE")
+                    {
+                        string profilePath = Path.Combine(Application.StartupPath, "UI", "Profile", "profile.html");
+                        webView21.CoreWebView2.Navigate(new Uri(profilePath).AbsoluteUri);
+                        return;
+                    }
+
+                    if (msg.type == "NAVIGATE_HOME")
+                    {
+                        string homePath = Path.Combine(Application.StartupPath, "UI", "Home", "home.html");
+                        webView21.CoreWebView2.Navigate(new Uri(homePath).AbsoluteUri);
                         return;
                     }
 
@@ -169,6 +196,16 @@ namespace MiniSocialApp
                 catch { /* bỏ qua lỗi poll */ }
             };
             _feedTimer.Start();
+        }
+
+        private void StopFeedPolling()
+        {
+            if (_feedTimer != null)
+            {
+                _feedTimer.Stop();
+                _feedTimer.Dispose();
+                _feedTimer = null;
+            }
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)

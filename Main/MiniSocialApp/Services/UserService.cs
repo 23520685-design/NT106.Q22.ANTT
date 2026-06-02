@@ -42,6 +42,7 @@ namespace MiniSocialApp.Services
         { "followersCount", 0 },
         { "followingCount", 0 },
         { "postCount", 0 },
+        { "bio", "" },
         { "createdAt", Timestamp.GetCurrentTimestamp() }
     };
 
@@ -93,6 +94,59 @@ namespace MiniSocialApp.Services
                 .ToList();
 
             return users;
+        }
+
+        public async Task<Dictionary<string, object>> UpdateUserProfile(
+            string userName,
+            string bio,
+            string avatar
+        )
+        {
+            var userDict = CurrentUserStore.User as Dictionary<string, object>;
+            if (userDict == null)
+                throw new Exception("Người dùng chưa đăng nhập.");
+
+            string userId = userDict.ContainsKey("userId")
+                ? Convert.ToString(userDict["userId"])
+                : null;
+
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new Exception("UserId không hợp lệ.");
+
+            if (string.IsNullOrWhiteSpace(userName))
+                throw new Exception("Tên người dùng không được để trống.");
+
+            userName = userName.Trim();
+            bio = bio != null ? bio.Trim() : "";
+            avatar = avatar != null ? avatar.Trim() : "";
+
+            var updateData = new Dictionary<string, object>
+            {
+                { "userName", userName },
+                { "bio", bio },
+                { "updatedAt", Timestamp.GetCurrentTimestamp() }
+            };
+
+            if (!string.IsNullOrWhiteSpace(avatar))
+            {
+                updateData["avatar"] = avatar;
+            }
+
+            var userRef = _db.Collection("users").Document(userId);
+            await userRef.UpdateAsync(updateData);
+
+            var updatedSnap = await userRef.GetSnapshotAsync();
+            if (!updatedSnap.Exists)
+                throw new Exception("Không tìm thấy người dùng.");
+
+            var updatedUser = updatedSnap.ToDictionary();
+
+            if (!updatedUser.ContainsKey("userId"))
+                updatedUser["userId"] = userId;
+
+            CurrentUserStore.User = updatedUser;
+
+            return updatedUser;
         }
     }
 }

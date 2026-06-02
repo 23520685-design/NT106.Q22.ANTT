@@ -37,5 +37,31 @@ namespace MiniSocialApp.Controllers
                 data = posts
             };
         }
+
+        // Lấy bài viết của user (dùng cho Profile)
+        public async Task<object> GetUserPosts(dynamic data)
+        {
+            string userId = null;
+
+            // Nếu có truyền userId thì dùng, không thì lấy current user
+            if (data != null && data.userId != null)
+            {
+                userId = (string)data.userId;
+            }
+            else
+            {
+                var userDict = MiniSocialApp.CurrentUserStore.User as System.Collections.Generic.Dictionary<string, object>;
+                if (userDict != null && userDict.ContainsKey("userId"))
+                    userId = userDict["userId"]?.ToString();
+            }
+
+            var posts = await _postService.GetUserPosts(userId);
+
+            return new
+            {
+                type = "PROFILE_POSTS_DATA",
+                data = posts
+            };
+        }
     }
 }

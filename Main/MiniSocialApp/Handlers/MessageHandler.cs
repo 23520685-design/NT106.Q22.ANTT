@@ -40,6 +40,11 @@ public class MessageHandler
                         await _postController.GetFeed()
                     );
 
+                case "GET_PROFILE_POSTS":
+                    return JsonConvert.SerializeObject(
+                        await _postController.GetUserPosts(msg.data)
+                    );
+
                 case "TOGGLE_LIKE":
                     return JsonConvert.SerializeObject(
                         await _likeController.ToggleLike(msg.data)
@@ -48,6 +53,11 @@ public class MessageHandler
                 case "SEARCH_USER":
                     return JsonConvert.SerializeObject(
                         await _userController.SearchUsers(msg.data)
+                    );
+
+                case "UPDATE_PROFILE":
+                    return JsonConvert.SerializeObject(
+                        await _userController.UpdateProfile(msg.data)
                     );
 
                 case "GET_COMMENTS":

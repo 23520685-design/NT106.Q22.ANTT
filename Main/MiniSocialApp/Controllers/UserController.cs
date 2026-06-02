@@ -24,5 +24,21 @@ namespace MiniSocialApp.Controllers
                 data = users
             };
         }
+
+        public async Task<object> UpdateProfile(dynamic data)
+        {
+            string userName = data.userName != null ? (string)data.userName : "";
+            string bio = data.bio != null ? (string)data.bio : "";
+            string avatar = data.avatar != null ? (string)data.avatar : "";
+
+            var updatedUser = await _userService.UpdateUserProfile(userName, bio, avatar);
+
+            return new
+            {
+                type = "UPDATE_PROFILE_SUCCESS",
+                data = updatedUser
+            };
+        }
+
     }
 }
