@@ -42,7 +42,7 @@ let profileCurrentUser = {
   userId: "",
   userName: "Khang Hoàng",
   avatar: "https://i.pravatar.cc/150?img=11",
-  bio: "Mini Social App",
+  bio: "",
 };
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -53,8 +53,11 @@ document.addEventListener("DOMContentLoaded", function () {
   initProfileSearch();
   initProfileWebViewMessages();
   initProfileMenu();
+  initEditProfileModal();
 
   renderProfileUser(profileCurrentUser);
+
+  profileSendToCSharp({ type: "GET_PROFILE_POSTS", data: null });
 });
 
 // ============================================================
@@ -189,10 +192,15 @@ function renderProfileTab(tabName) {
 
   if (tabName === "posts") {
     tabContent.innerHTML = `
-      <div id="profilePostsContainer" class="profile-posts-container"></div>
+      <div id="profilePostsContainer" class="profile-posts-container">
+        <div class="profile-empty-state">
+          <p>Đang tải bài viết...</p>
+        </div>
+      </div>
     `;
 
-    renderProfilePosts(getDemoProfilePosts());
+    // Gọi backend lấy bài viết thật
+    profileSendToCSharp({ type: "GET_PROFILE_POSTS", data: null });
     return;
   }
 
@@ -366,7 +374,7 @@ function renderProfileUser(user) {
   const name = profileCurrentUser.userName || "Người dùng";
   const avatar =
     profileCurrentUser.avatar || "https://i.pravatar.cc/150?img=11";
-  const bio = profileCurrentUser.bio || "Mini Social App";
+  const bio = profileCurrentUser.bio || "";
 
   setText("profileUserName", name);
   setText("profileUserBio", bio);
@@ -474,13 +482,12 @@ function buildProfilePostHTML(post) {
         <p>${profileEscapeHTML(post.content || "")}</p>
       </div>
 
-      ${
-        post.mediaUrl
-          ? `<div class="profile-post-real-image"><img src="${profileEscapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" /></div>`
-          : post.hasDemoImage
-            ? `<div class="profile-post-image"></div>`
-            : ""
-      }
+      ${post.mediaUrl
+      ? `<div class="profile-post-real-image"><img src="${profileEscapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" /></div>`
+      : post.hasDemoImage
+        ? `<div class="profile-post-image"></div>`
+        : ""
+    }
 
       <div class="profile-post-stats">
         <span>${post.likeCount || 0} lượt thích</span>
@@ -691,7 +698,7 @@ function initProfileWebViewMessages() {
         userId: data.userId || "",
         userName: data.userName || "Người dùng",
         avatar: data.avatar || "",
-        bio: data.bio || "Mini Social App",
+        bio: data.bio || "",
       });
 
       return;
@@ -704,7 +711,7 @@ function initProfileWebViewMessages() {
         userId: data.userId || "",
         userName: data.userName || "Người dùng",
         avatar: data.avatar || "",
-        bio: data.bio || "Mini Social App",
+        bio: data.bio || "",
       });
 
       if (Array.isArray(data.posts)) {
@@ -738,6 +745,30 @@ function initProfileWebViewMessages() {
       return;
     }
 
+
+
+    if (msg.type === "UPDATE_PROFILE_SUCCESS") {
+      const data = msg.data || {};
+
+      renderProfileUser({
+        userId: data.userId || profileCurrentUser.userId,
+        userName: data.userName || profileCurrentUser.userName,
+        avatar: data.avatar || profileCurrentUser.avatar,
+        bio: data.bio || profileCurrentUser.bio,
+      });
+
+      closeEditProfileModal();
+
+      const saveBtn = document.getElementById("saveEditProfileBtn");
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = "Lưu thay đổi";
+      }
+
+      showProfileToast("Cập nhật hồ sơ thành công");
+      return;
+    }
+
     if (msg.type === "LIKE_UPDATED") {
       updateProfileLikeState(msg.data || {});
       return;
@@ -745,6 +776,21 @@ function initProfileWebViewMessages() {
 
     if (msg.type === "ERROR") {
       showProfileToast(msg.message || "Có lỗi xảy ra");
+
+      // Re-enable nút save nếu đang bị disabled (sau UPDATE_PROFILE thất bại)
+      var saveBtn = document.getElementById("saveEditProfileBtn");
+      if (saveBtn && saveBtn.disabled) {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = "Lưu thay đổi";
+      }
+
+      // Re-enable nút publish nếu đang bị disabled
+      var publishBtn = document.getElementById("btnPublishProfilePost");
+      if (publishBtn && publishBtn.disabled) {
+        publishBtn.disabled = false;
+        publishBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Đăng bài';
+      }
+
       return;
     }
   });
@@ -811,6 +857,95 @@ function updateProfileStats(stats) {
   if (stats.friends != null) setText("statFriends", stats.friends);
   if (stats.likes != null) setText("statLikes", stats.likes);
   if (stats.comments != null) setText("statComments", stats.comments);
+}
+
+//Hàm mở Modal chỉnh sửa Profile
+function openEditProfileModal() {
+  const modal = document.getElementById("editProfileModal");
+  const nameInput = document.getElementById("editProfileName");
+  const bioInput = document.getElementById("editProfileBio");
+  const avatarInput = document.getElementById("editProfileAvatar");
+  const preview = document.getElementById("editProfileAvatarPreview");
+
+  if (!modal) return;
+
+  if (nameInput) nameInput.value = profileCurrentUser.userName || "";
+  if (bioInput) bioInput.value = profileCurrentUser.bio || "";
+  if (avatarInput) avatarInput.value = profileCurrentUser.avatar || "";
+  if (preview) preview.src = profileCurrentUser.avatar || "https://i.pravatar.cc/150";
+
+  modal.classList.remove("hidden");
+}
+
+function closeEditProfileModal() {
+  const modal = document.getElementById("editProfileModal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function initEditProfileModal() {
+  const editBtn = document.getElementById("btnEditProfile");
+  const closeBtn = document.getElementById("editProfileCloseBtn");
+  const cancelBtn = document.getElementById("cancelEditProfileBtn");
+  const backdrop = document.getElementById("closeEditProfileModal");
+  const saveBtn = document.getElementById("saveEditProfileBtn");
+  const avatarInput = document.getElementById("editProfileAvatar");
+  const preview = document.getElementById("editProfileAvatarPreview");
+
+  if (editBtn) {
+    editBtn.addEventListener("click", openEditProfileModal);
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", closeEditProfileModal);
+  }
+
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", closeEditProfileModal);
+  }
+
+  if (backdrop) {
+    backdrop.addEventListener("click", closeEditProfileModal);
+  }
+
+  if (avatarInput && preview) {
+    avatarInput.addEventListener("input", function () {
+      preview.src = avatarInput.value || "https://i.pravatar.cc/150";
+    });
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", saveProfileChanges);
+  }
+}
+
+function saveProfileChanges() {
+  const nameInput = document.getElementById("editProfileName");
+  const bioInput = document.getElementById("editProfileBio");
+  const avatarInput = document.getElementById("editProfileAvatar");
+  const saveBtn = document.getElementById("saveEditProfileBtn");
+
+  const userName = nameInput ? nameInput.value.trim() : "";
+  const bio = bioInput ? bioInput.value.trim() : "";
+  const avatar = avatarInput ? avatarInput.value.trim() : "";
+
+  if (!userName) {
+    showProfileToast("Tên hiển thị không được để trống");
+    return;
+  }
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang lưu...';
+  }
+
+  profileSendToCSharp({
+    type: "UPDATE_PROFILE",
+    data: {
+      userName: userName,
+      bio: bio,
+      avatar: avatar,
+    },
+  });
 }
 
 // ============================================================
