@@ -40,5 +40,31 @@ namespace MiniSocialApp.Controllers
             };
         }
 
+        public async Task<object> GetUserProfile(dynamic data)
+        {
+            string userId = data.userId != null ? (string)data.userId : "";
+
+            var profile = await _userService.GetUserProfile(userId);
+
+            return new
+            {
+                type = "PROFILE_DATA",
+                data = profile
+            };
+        }
+
+        public async Task<object> OpenUserProfile(dynamic data)
+        {
+            string userId = data.userId != null ? (string)data.userId : "";
+
+            var profile = await _userService.GetUserProfile(userId);
+
+            return new
+            {
+                type = "OPEN_PROFILE_PAGE",
+                data = profile
+            };
+        }
+
     }
 }

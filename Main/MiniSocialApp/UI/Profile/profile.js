@@ -30,6 +30,12 @@ function profileFormatTime(ts) {
     date = new Date(ts * 1000);
   } else if (typeof ts === "string") {
     date = new Date(ts);
+  } else if (typeof ts === "object") {
+    if (ts.seconds != null) {
+      date = new Date(ts.seconds * 1000);
+    } else if (ts._seconds != null) {
+      date = new Date(ts._seconds * 1000);
+    }
   }
 
   if (!date || isNaN(date.getTime())) return "Vừa xong";
@@ -40,8 +46,8 @@ function profileFormatTime(ts) {
 let profileSelectedImagePath = null;
 let profileCurrentUser = {
   userId: "",
-  userName: "Khang Hoàng",
-  avatar: "https://i.pravatar.cc/150?img=11",
+  userName: "",
+  avatar: "",
   bio: "",
 };
 
@@ -50,6 +56,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initProfileTabs();
   initProfilePostModal();
   initProfileLikeButtons();
+  initProfileCommentButtons();
   initProfileSearch();
   initProfileWebViewMessages();
   initProfileMenu();
@@ -57,7 +64,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   renderProfileUser(profileCurrentUser);
 
-  profileSendToCSharp({ type: "GET_PROFILE_POSTS", data: null });
+  profileSendToCSharp({
+    type: "GET_USER_PROFILE",
+    data: { userId: profileLoggedInUser.userId }
+  });
+
 });
 
 // ============================================================
@@ -144,6 +155,11 @@ function handleProfileMenuPage(page) {
   }
 
   if (page === "create-post") {
+    if (!isMyProfile()) {
+      showProfileToast("Bạn chỉ có thể đăng bài trên trang cá nhân của mình");
+      return;
+    }
+
     openProfilePostModal();
     return;
   }
@@ -192,15 +208,20 @@ function renderProfileTab(tabName) {
 
   if (tabName === "posts") {
     tabContent.innerHTML = `
-      <div id="profilePostsContainer" class="profile-posts-container">
-        <div class="profile-empty-state">
-          <p>Đang tải bài viết...</p>
-        </div>
+    <div id="profilePostsContainer" class="profile-posts-container">
+      <div class="profile-empty-state">
+        <p>Đang tải bài viết...</p>
       </div>
-    `;
+    </div>
+  `;
 
-    // Gọi backend lấy bài viết thật
-    profileSendToCSharp({ type: "GET_PROFILE_POSTS", data: null });
+    if (profileViewingUserId) {
+      profileSendToCSharp({
+        type: "GET_USER_PROFILE",
+        data: { userId: profileViewingUserId }
+      });
+    }
+
     return;
   }
 
@@ -318,6 +339,11 @@ function closeProfilePostModal() {
 }
 
 function publishProfilePost() {
+  if (!isMyProfile()) {
+    showProfileToast("Bạn chỉ có thể đăng bài trên trang cá nhân của mình");
+    return;
+  }
+
   const input = document.getElementById("profilePostContent");
   const visibility = document.getElementById("profilePostVisibility");
   const publishBtn = document.getElementById("btnPublishProfilePost");
@@ -334,7 +360,8 @@ function publishProfilePost() {
 
   if (publishBtn) {
     publishBtn.disabled = true;
-    publishBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang đăng...';
+    publishBtn.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Đang đăng...';
   }
 
   profileSendToCSharp({
@@ -345,20 +372,6 @@ function publishProfilePost() {
       visibility: visibility ? visibility.value : "public",
     },
   });
-
-  input.value = "";
-  profileSelectedImagePath = null;
-
-  const preview = document.getElementById("profileImagePreview");
-  if (preview) preview.innerHTML = "";
-
-  if (publishBtn) {
-    publishBtn.disabled = false;
-    publishBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Đăng bài';
-  }
-
-  closeProfilePostModal();
-  showProfileToast("Đăng bài thành công");
 }
 
 // ============================================================
@@ -454,6 +467,7 @@ function renderProfilePosts(posts) {
 
   container.innerHTML = html;
   initProfileLikeButtons();
+  initProfileCommentButtons();
 }
 
 function buildProfilePostHTML(post) {
@@ -515,6 +529,7 @@ function createProfilePostLocal(post) {
 
   container.insertAdjacentHTML("afterbegin", buildProfilePostHTML(post));
   initProfileLikeButtons();
+  initProfileCommentButtons();
 }
 
 function getVisibilityText(value) {
@@ -532,9 +547,14 @@ function initProfileLikeButtons() {
 
   likeButtons.forEach(function (button) {
     button.onclick = function () {
+      // Debounce: tránh spam click trước khi server phản hồi
+      if (button.dataset.loading === "true") return;
+      button.dataset.loading = "true";
+
       const post = button.closest(".profile-post-card");
       const postId = post ? post.dataset.postId : null;
 
+      // Optimistic UI toggle
       button.classList.toggle("liked");
 
       const label = button.querySelector("span");
@@ -557,13 +577,121 @@ function initProfileLikeButtons() {
       if (postId) {
         profileSendToCSharp({
           type: "TOGGLE_LIKE",
-          data: {
-            postId: postId,
-          },
+          data: { postId: postId },
         });
       }
+
+      // Mở khóa sau 500ms (đủ thời gian server phản hồi)
+      setTimeout(function () {
+        button.dataset.loading = "false";
+      }, 500);
     };
   });
+}
+
+// ============================================================
+// COMMENT BUTTONS IN PROFILE
+// ============================================================
+function initProfileCommentButtons() {
+  const commentButtons = document.querySelectorAll(".profile-comment-btn");
+
+  commentButtons.forEach(function (button) {
+    button.onclick = function (e) {
+      e.stopPropagation();
+
+      const post = button.closest(".profile-post-card");
+      const postId = post ? post.dataset.postId : null;
+      if (!postId) return;
+
+      // Mở modal bình luận giống ở Home
+      openProfileCommentModal(postId, post);
+    };
+  });
+}
+
+function openProfileCommentModal(postId, postEl) {
+  // Tái sử dụng modal bình luận đơn giản
+  const existingModal = document.getElementById("profileCommentModal");
+  if (existingModal) existingModal.remove();
+
+  const avatarSrc =
+    profileCurrentUser && profileCurrentUser.avatar
+      ? profileCurrentUser.avatar
+      : "https://i.pravatar.cc/100?u=current";
+
+  const postContent = postEl ? postEl.querySelector(".profile-post-content p") : null;
+  const previewText = postContent ? postContent.textContent.substring(0, 80) : "";
+
+  const modal = document.createElement("div");
+  modal.id = "profileCommentModal";
+  modal.style.cssText = [
+    "position:fixed", "inset:0", "background:rgba(0,0,0,0.6)",
+    "display:flex", "align-items:center", "justify-content:center",
+    "z-index:9999", "padding:20px"
+  ].join(";");
+
+  modal.innerHTML = `
+    <div style="background:rgba(30,30,50,0.97);border-radius:16px;padding:24px;width:100%;max-width:500px;max-height:80vh;display:flex;flex-direction:column;gap:16px;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h3 style="margin:0;color:#e2e8f0;font-size:16px;"><i class="fas fa-comment-alt" style="margin-right:8px;color:#6366f1;"></i>Bình luận</h3>
+        <button id="closeProfileCommentModal" style="background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer;"><i class="fas fa-times"></i></button>
+      </div>
+      ${previewText ? `<p style="margin:0;color:#94a3b8;font-size:13px;border-left:3px solid #6366f1;padding-left:10px;">${profileEscapeHTML(previewText)}${previewText.length >= 80 ? "..." : ""}</p>` : ""}
+      <div id="profileCommentList" style="flex:1;overflow-y:auto;max-height:280px;display:flex;flex-direction:column;gap:10px;">
+        <div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0;">Đang tải bình luận...</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:flex-start;">
+        <img src="${profileEscapeHTML(avatarSrc)}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.src='https://i.pravatar.cc/100'" />
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+          <textarea id="profileCommentInput" placeholder="Viết bình luận..." rows="2" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:10px;color:#e2e8f0;font-size:14px;resize:none;font-family:inherit;box-sizing:border-box;"></textarea>
+          <button id="btnSendProfileComment" style="align-self:flex-end;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;border-radius:8px;padding:8px 16px;color:white;font-size:13px;cursor:pointer;">
+            <i class="fas fa-paper-plane"></i> Gửi
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  document.body.style.overflow = "hidden";
+
+  // Load comments
+  profileSendToCSharp({ type: "GET_COMMENTS", data: { postId: postId } });
+
+  // Đóng modal
+  document.getElementById("closeProfileCommentModal").onclick = function () {
+    modal.remove();
+    document.body.style.overflow = "";
+  };
+  modal.onclick = function (e) {
+    if (e.target === modal) {
+      modal.remove();
+      document.body.style.overflow = "";
+    }
+  };
+
+  // Gửi bình luận
+  var currentPostId = postId;
+  function sendProfileComment() {
+    var input = document.getElementById("profileCommentInput");
+    var btn = document.getElementById("btnSendProfileComment");
+    if (!input || !currentPostId) return;
+    var content = input.value.trim();
+    if (!content) { input.focus(); return; }
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang gửi...'; }
+    profileSendToCSharp({ type: "CREATE_COMMENT", data: { postId: currentPostId, content: content } });
+  }
+
+  document.getElementById("btnSendProfileComment").onclick = sendProfileComment;
+  document.getElementById("profileCommentInput").onkeydown = function (e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendProfileComment(); }
+  };
+
+  // Focus input
+  setTimeout(function () {
+    var input = document.getElementById("profileCommentInput");
+    if (input) input.focus();
+  }, 100);
 }
 
 // ============================================================
@@ -683,6 +811,9 @@ function resetProfilePostModal() {
 // WEBVIEW2 RECEIVE MESSAGE
 // ============================================================
 
+let profileLoggedInUser = null;
+let profileViewingUserId = null;
+
 function initProfileWebViewMessages() {
   if (!(window.chrome && window.chrome.webview)) return;
 
@@ -694,18 +825,30 @@ function initProfileWebViewMessages() {
     if (msg.type === "USER_UPDATED") {
       const data = msg.data || {};
 
-      renderProfileUser({
+      profileLoggedInUser = {
         userId: data.userId || "",
         userName: data.userName || "Người dùng",
         avatar: data.avatar || "",
         bio: data.bio || "",
-      });
+      };
+
+      // Chỉ render current user nếu chưa có profile đang xem
+      if (!profileViewingUserId) {
+        profileViewingUserId = profileLoggedInUser.userId;
+        renderProfileUser(profileLoggedInUser);
+        profileSendToCSharp({
+          type: "GET_USER_PROFILE",
+          data: { userId: profileViewingUserId }
+        });
+      }
 
       return;
     }
 
     if (msg.type === "PROFILE_DATA") {
       const data = msg.data || {};
+
+      profileViewingUserId = data.userId || "";
 
       renderProfileUser({
         userId: data.userId || "",
@@ -719,6 +862,8 @@ function initProfileWebViewMessages() {
       }
 
       updateProfileStats(data.stats || {});
+      updateProfileActionButtons();
+
       return;
     }
 
@@ -741,7 +886,14 @@ function initProfileWebViewMessages() {
       resetProfilePostModal();
       showProfileToast("Đăng bài thành công");
       closeProfilePostModal();
-      profileSendToCSharp({ type: "GET_PROFILE_POSTS" });
+
+      if (profileViewingUserId) {
+        profileSendToCSharp({
+          type: "GET_USER_PROFILE",
+          data: { userId: profileViewingUserId }
+        });
+      }
+
       return;
     }
 
@@ -774,6 +926,81 @@ function initProfileWebViewMessages() {
       return;
     }
 
+    if (msg.type === "COMMENTS_DATA") {
+      var data = msg.data || {};
+      var list = document.getElementById("profileCommentList");
+      if (!list) return;
+
+      var comments = data.comments || [];
+      if (comments.length === 0) {
+        list.innerHTML = '<div style="color:#94a3b8;font-size:13px;text-align:center;padding:20px 0;">Chưa có bình luận nào.</div>';
+        return;
+      }
+
+      var html = "";
+      comments.forEach(function (c) {
+        html += `
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <img src="${profileEscapeHTML(c.avatar || 'https://i.pravatar.cc/100')}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.src='https://i.pravatar.cc/100'" />
+            <div style="flex:1;">
+              <div style="background:rgba(255,255,255,0.07);border-radius:12px;padding:8px 12px;">
+                <div style="font-weight:600;font-size:13px;color:#e2e8f0;margin-bottom:4px;">${profileEscapeHTML(c.userName || 'Ẩn danh')}</div>
+                <div style="font-size:13px;color:#cbd5e1;">${profileEscapeHTML(c.content || '')}</div>
+              </div>
+              <div style="font-size:11px;color:#64748b;margin-top:4px;padding-left:4px;">${profileFormatTime(c.createdAt)}</div>
+            </div>
+          </div>
+        `;
+      });
+      list.innerHTML = html;
+      list.scrollTop = list.scrollHeight;
+      return;
+    }
+
+    if (msg.type === "CREATE_COMMENT_SUCCESS") {
+      var commentData = msg.data || {};
+      var list2 = document.getElementById("profileCommentList");
+
+      if (list2) {
+        var empty = list2.querySelector('[style*="Chưa có bình luận"]');
+        if (empty) empty.remove();
+
+        var newHtml = `
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <img src="${profileEscapeHTML(commentData.avatar || 'https://i.pravatar.cc/100')}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.src='https://i.pravatar.cc/100'" />
+            <div style="flex:1;">
+              <div style="background:rgba(255,255,255,0.07);border-radius:12px;padding:8px 12px;">
+                <div style="font-weight:600;font-size:13px;color:#e2e8f0;margin-bottom:4px;">${profileEscapeHTML(commentData.userName || 'Ẩn danh')}</div>
+                <div style="font-size:13px;color:#cbd5e1;">${profileEscapeHTML(commentData.content || '')}</div>
+              </div>
+              <div style="font-size:11px;color:#64748b;margin-top:4px;padding-left:4px;">Vừa xong</div>
+            </div>
+          </div>
+        `;
+        list2.insertAdjacentHTML("beforeend", newHtml);
+        list2.scrollTop = list2.scrollHeight;
+      }
+
+      // Cập nhật số bình luận trên post card
+      var postId = commentData.postId;
+      if (postId) {
+        var postCard = document.querySelector('[data-post-id="' + postId + '"]');
+        if (postCard) {
+          var statsSpans = postCard.querySelectorAll('.profile-post-stats span');
+          if (statsSpans[1]) {
+            statsSpans[1].textContent = (commentData.commentCount || 0) + ' bình luận';
+          }
+        }
+      }
+
+      // Reset input và nút gửi
+      var input = document.getElementById("profileCommentInput");
+      var btn = document.getElementById("btnSendProfileComment");
+      if (input) { input.value = ""; input.focus(); }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi'; }
+      return;
+    }
+
     if (msg.type === "ERROR") {
       showProfileToast(msg.message || "Có lỗi xảy ra");
 
@@ -794,6 +1021,27 @@ function initProfileWebViewMessages() {
       return;
     }
   });
+}
+
+function isMyProfile() {
+  return (
+    profileLoggedInUser &&
+    profileViewingUserId &&
+    profileLoggedInUser.userId === profileViewingUserId
+  );
+}
+
+function updateProfileActionButtons() {
+  const editBtn = document.getElementById("btnEditProfile");
+  const addStoryBtn = document.getElementById("btnAddStory");
+
+  const isMyProfile =
+    profileLoggedInUser &&
+    profileViewingUserId &&
+    profileLoggedInUser.userId === profileViewingUserId;
+
+  if (editBtn) editBtn.style.display = isMyProfile ? "" : "none";
+  if (addStoryBtn) addStoryBtn.style.display = isMyProfile ? "" : "none";
 }
 
 function handleProfileImageSelected(data) {

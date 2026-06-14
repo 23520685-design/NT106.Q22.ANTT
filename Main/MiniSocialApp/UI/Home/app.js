@@ -105,10 +105,11 @@ function buildPostHTML(post) {
 
       <div class="post-content">
         <p>${escapeHTML(post.content || "")}</p>
-        ${post.mediaUrl
-      ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
-      : ""
-    }
+        ${
+          post.mediaUrl
+            ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
+            : ""
+        }
       </div>
 
       <div class="post-stats">
@@ -627,10 +628,20 @@ function renderSearchResults(users) {
   document.querySelectorAll(".search-result-item").forEach((item) => {
     item.onclick = function () {
       const userId = this.dataset.userId;
-      showToast("Đã chọn user: " + userId);
 
-      // Sau này chỗ này sẽ mở profile
-      // sendToCSharp({ type: "GET_USER_PROFILE", data: { userId: userId } });
+      if (!userId) {
+        showToast("Không tìm thấy userId");
+        return;
+      }
+
+      sendToCSharp({
+        type: "OPEN_USER_PROFILE",
+        data: {
+          userId: userId,
+        },
+      });
+
+      box.classList.add("hidden");
     };
   });
 }

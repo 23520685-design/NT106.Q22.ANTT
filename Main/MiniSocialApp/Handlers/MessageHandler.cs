@@ -55,6 +55,12 @@ public class MessageHandler
                         await _userController.SearchUsers(msg.data)
                     );
 
+
+                case "OPEN_USER_PROFILE":
+                    return JsonConvert.SerializeObject(
+                        await _userController.OpenUserProfile(msg.data)
+                    );
+
                 case "UPDATE_PROFILE":
                     return JsonConvert.SerializeObject(
                         await _userController.UpdateProfile(msg.data)
@@ -68,6 +74,11 @@ public class MessageHandler
                 case "CREATE_COMMENT":
                     return JsonConvert.SerializeObject(
                         await _commentController.CreateComment(msg.data)
+                    );
+
+                case "GET_USER_PROFILE":
+                    return JsonConvert.SerializeObject(
+                        await _userController.GetUserProfile(msg.data)
                     );
 
                 default:

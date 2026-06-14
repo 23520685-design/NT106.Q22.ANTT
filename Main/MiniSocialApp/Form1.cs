@@ -18,6 +18,7 @@ namespace MiniSocialApp
     {
         private MessageHandler _messageHandler;
         public bool IsRestarting { get; private set; } = false;
+        private object _pendingProfileData = null;
         private readonly SeedDataService seedDataService = new SeedDataService(new FirestoreContext());
         public Form1()
         {
@@ -72,25 +73,42 @@ namespace MiniSocialApp
             // Sau khi trang HTML load xong → gửi thông tin user xuống JS
             webView21.CoreWebView2.NavigationCompleted += (s, args) =>
             {
+                string currentUrl = webView21.CoreWebView2.Source;
+
                 var userDict = CurrentUserStore.User as Dictionary<string, object>;
-                if (userDict == null) return;
-
-                string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
-                string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
-                string userId = userDict.ContainsKey("userId") ? userDict["userId"]?.ToString() : "";
-                string bio = userDict.ContainsKey("bio") ? userDict["bio"]?.ToString() : "";
-
-                var msg = new
+                if (userDict != null)
                 {
-                    type = "USER_UPDATED",
-                    data = new { userId, userName, avatar, bio }
-                };
+                    string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
+                    string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
+                    string userId = userDict.ContainsKey("userId") ? userDict["userId"]?.ToString() : "";
+                    string bio = userDict.ContainsKey("bio") ? userDict["bio"]?.ToString() : "";
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(msg);
-                webView21.CoreWebView2.PostWebMessageAsJson(json);
+                    var userMsg = new
+                    {
+                        type = "USER_UPDATED",
+                        data = new { userId, userName, avatar, bio }
+                    };
+
+                    string userJson = Newtonsoft.Json.JsonConvert.SerializeObject(userMsg);
+                    webView21.CoreWebView2.PostWebMessageAsJson(userJson);
+                }
+
+                // Nếu đang mở profile người khác từ Home search
+                if (_pendingProfileData != null && currentUrl != null && currentUrl.Contains("profile.html"))
+                {
+                    var profileMsg = new
+                    {
+                        type = "PROFILE_DATA",
+                        data = _pendingProfileData
+                    };
+
+                    string profileJson = Newtonsoft.Json.JsonConvert.SerializeObject(profileMsg);
+                    webView21.CoreWebView2.PostWebMessageAsJson(profileJson);
+
+                    _pendingProfileData = null;
+                }
 
                 // Chỉ polling feed khi đang ở trang Home
-                string currentUrl = webView21.CoreWebView2.Source;
                 if (currentUrl != null && currentUrl.Contains("home.html"))
                 {
                     StartFeedPolling();
@@ -102,7 +120,7 @@ namespace MiniSocialApp
             };
 
 
-        // nhận message từ JS
+            // nhận message từ JS
             webView21.CoreWebView2.WebMessageReceived += async (s, x) =>
             {
                 try
@@ -165,6 +183,23 @@ namespace MiniSocialApp
 
                     if (result != null)
                     {
+                        dynamic responseObj = Newtonsoft.Json.JsonConvert.DeserializeObject(result);
+
+                        if (responseObj.type == "OPEN_PROFILE_PAGE")
+                        {
+                            _pendingProfileData = responseObj.data;
+
+                            string profilePath = Path.Combine(
+                                Application.StartupPath,
+                                "UI",
+                                "Profile",
+                                "profile.html"
+                            );
+
+                            webView21.CoreWebView2.Navigate(new Uri(profilePath).AbsoluteUri);
+                            return;
+                        }
+
                         webView21.CoreWebView2.PostWebMessageAsJson(result);
                     }
                 }

@@ -14,7 +14,7 @@ namespace MiniSocialApp.Services
         {
             _db = context.Db;
         }
-
+    // Đăng nhập hoặc tạo mới user dựa trên số điện thoại
         public async Task<Dictionary<string, object>> LoginOrCreate(string userName, string phone)
         {
 
@@ -51,7 +51,7 @@ namespace MiniSocialApp.Services
             return user;
         }
 
-        // Tìm kiếm user theo tên hoặc số điện thoại, loại trừ user hiện tại
+    // Tìm kiếm user theo tên hoặc số điện thoại, loại trừ user hiện tại
         public async Task<List<Dictionary<string, object>>> SearchUsers(string keyword)
         {
             if (string.IsNullOrWhiteSpace(keyword))
@@ -95,7 +95,7 @@ namespace MiniSocialApp.Services
 
             return users;
         }
-
+    // Cập nhật profile của user hiện tại
         public async Task<Dictionary<string, object>> UpdateUserProfile(
             string userName,
             string bio,
@@ -147,6 +147,61 @@ namespace MiniSocialApp.Services
             CurrentUserStore.User = updatedUser;
 
             return updatedUser;
+        }
+
+     // Lấy thông tin profile của user, bao gồm bài viết và thống kê
+        public async Task<Dictionary<string, object>> GetUserProfile(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new Exception("UserId không hợp lệ.");
+
+            var userDoc = await _db.Collection("users").Document(userId).GetSnapshotAsync();
+
+            if (!userDoc.Exists)
+                throw new Exception("Không tìm thấy người dùng.");
+
+            var user = userDoc.ToDictionary();
+
+            if (!user.ContainsKey("userId"))
+                user["userId"] = userDoc.Id;
+
+            // Lấy bài viết của user
+            var postSnapshot = await _db.Collection("posts")
+                .WhereEqualTo("userId", userId)
+                .OrderByDescending("createdAt")
+                .Limit(50)
+                .GetSnapshotAsync();
+
+            var posts = postSnapshot.Documents
+                .Select(doc =>
+                {
+                    var data = doc.ToDictionary();
+
+                    if (!data.ContainsKey("postId"))
+                        data["postId"] = doc.Id;
+
+                    return data;
+                })
+                .ToList();
+
+            int totalLikes = posts.Sum(p =>
+                p.ContainsKey("likeCount") ? Convert.ToInt32(p["likeCount"]) : 0
+            );
+
+            int totalComments = posts.Sum(p =>
+                p.ContainsKey("commentCount") ? Convert.ToInt32(p["commentCount"]) : 0
+            );
+
+            user["posts"] = posts;
+            user["stats"] = new Dictionary<string, object>
+    {
+        { "posts", posts.Count },
+        { "likes", totalLikes },
+        { "comments", totalComments },
+        { "friends", user.ContainsKey("followersCount") ? user["followersCount"] : 0 }
+    };
+
+            return user;
         }
     }
 }
