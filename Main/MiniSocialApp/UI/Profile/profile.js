@@ -51,6 +51,7 @@ let profileCurrentUser = {
   bio: "",
 };
 
+
 document.addEventListener("DOMContentLoaded", function () {
   initProfileSidebar();
   initProfileTabs();
@@ -63,11 +64,6 @@ document.addEventListener("DOMContentLoaded", function () {
   initEditProfileModal();
 
   renderProfileUser(profileCurrentUser);
-
-  profileSendToCSharp({
-    type: "GET_USER_PROFILE",
-    data: { userId: profileLoggedInUser.userId }
-  });
 
 });
 
@@ -173,7 +169,8 @@ function handleProfileMenuPage(page) {
   }
 
   if (page === "profile") {
-    showProfileToast("Bạn đang ở trang cá nhân");
+    profileSendToCSharp({ type: "NAVIGATE_MY_PROFILE" });
+    showProfileToast("Chuyển về trang cá nhân");
     return;
   }
 
@@ -272,7 +269,14 @@ function initProfilePostModal() {
   const chooseImage = document.getElementById("btnChooseProfileImage");
 
   if (openBtn) {
-    openBtn.addEventListener("click", openProfilePostModal);
+    openBtn.addEventListener("click", function () {
+      if (!isMyProfile()) {
+        showProfileToast("Bạn chỉ có thể đăng bài trên trang cá nhân của mình");
+        return;
+      }
+
+      openProfilePostModal();
+    });
   }
 
   if (closeBtn) {
@@ -297,6 +301,11 @@ function initProfilePostModal() {
 
   if (quickImage) {
     quickImage.addEventListener("click", function () {
+      if (!isMyProfile()) {
+        showProfileToast("Bạn chỉ có thể đăng bài trên trang cá nhân của mình");
+        return;
+      }
+
       openProfilePostModal();
       profileSendToCSharp({ type: "CHOOSE_IMAGE" });
     });
@@ -778,7 +787,7 @@ function renderProfileSearchResults(users) {
       showProfileToast("Đã chọn người dùng: " + userId);
 
       profileSendToCSharp({
-        type: "GET_USER_PROFILE",
+        type: "NAVIGATE_PROFILE",
         data: {
           userId: userId,
         },
@@ -832,23 +841,16 @@ function initProfileWebViewMessages() {
         bio: data.bio || "",
       };
 
-      // Chỉ render current user nếu chưa có profile đang xem
-      if (!profileViewingUserId) {
-        profileViewingUserId = profileLoggedInUser.userId;
-        renderProfileUser(profileLoggedInUser);
-        profileSendToCSharp({
-          type: "GET_USER_PROFILE",
-          data: { userId: profileViewingUserId }
-        });
-      }
+      setImage("topUserAvatar", profileLoggedInUser.avatar || "");
 
+      updateProfileActionButtons();
       return;
     }
 
     if (msg.type === "PROFILE_DATA") {
       const data = msg.data || {};
 
-      profileViewingUserId = data.userId || "";
+      profileViewingUserId = data.userId != null ? String(data.userId) : "";
 
       renderProfileUser({
         userId: data.userId || "",
@@ -1024,24 +1026,26 @@ function initProfileWebViewMessages() {
 }
 
 function isMyProfile() {
-  return (
-    profileLoggedInUser &&
-    profileViewingUserId &&
-    profileLoggedInUser.userId === profileViewingUserId
-  );
+  const loginId =
+    profileLoggedInUser && profileLoggedInUser.userId != null
+      ? String(profileLoggedInUser.userId)
+      : "";
+
+  const viewingId =
+    profileViewingUserId != null
+      ? String(profileViewingUserId)
+      : "";
+
+  return loginId !== "" && viewingId !== "" && loginId === viewingId;
 }
 
 function updateProfileActionButtons() {
   const editBtn = document.getElementById("btnEditProfile");
   const addStoryBtn = document.getElementById("btnAddStory");
+  const canEdit = isMyProfile();
 
-  const isMyProfile =
-    profileLoggedInUser &&
-    profileViewingUserId &&
-    profileLoggedInUser.userId === profileViewingUserId;
-
-  if (editBtn) editBtn.style.display = isMyProfile ? "" : "none";
-  if (addStoryBtn) addStoryBtn.style.display = isMyProfile ? "" : "none";
+  if (editBtn) editBtn.style.display = canEdit ? "" : "none";
+  if (addStoryBtn) addStoryBtn.style.display = canEdit ? "" : "none";
 }
 
 function handleProfileImageSelected(data) {

@@ -20,6 +20,7 @@ namespace MiniSocialApp
         public bool IsRestarting { get; private set; } = false;
         private object _pendingProfileData = null;
         private readonly SeedDataService seedDataService = new SeedDataService(new FirestoreContext());
+        private string _currentProfileUserId = null;
         public Form1()
         {
             InitializeComponent();
@@ -71,12 +72,13 @@ namespace MiniSocialApp
             webView21.Source = new Uri(path);
 
             // Sau khi trang HTML load xong → gửi thông tin user xuống JS
-            webView21.CoreWebView2.NavigationCompleted += (s, args) =>
+            webView21.CoreWebView2.NavigationCompleted += async (s, args) =>
             {
                 string currentUrl = webView21.CoreWebView2.Source;
 
                 var userDict = CurrentUserStore.User as Dictionary<string, object>;
-                if (userDict != null)
+
+                if (userDict != null && currentUrl != null && currentUrl.Contains("home.html"))
                 {
                     string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
                     string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
@@ -93,22 +95,58 @@ namespace MiniSocialApp
                     webView21.CoreWebView2.PostWebMessageAsJson(userJson);
                 }
 
-                // Nếu đang mở profile người khác từ Home search
-                if (_pendingProfileData != null && currentUrl != null && currentUrl.Contains("profile.html"))
+                if (currentUrl != null && currentUrl.Contains("profile.html"))
                 {
-                    var profileMsg = new
+                    if (userDict != null)
                     {
-                        type = "PROFILE_DATA",
-                        data = _pendingProfileData
-                    };
+                        string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
+                        string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
+                        string userId = userDict.ContainsKey("userId") ? userDict["userId"]?.ToString() : "";
+                        string bio = userDict.ContainsKey("bio") ? userDict["bio"]?.ToString() : "";
 
-                    string profileJson = Newtonsoft.Json.JsonConvert.SerializeObject(profileMsg);
-                    webView21.CoreWebView2.PostWebMessageAsJson(profileJson);
+                        var userMsg = new
+                        {
+                            type = "USER_UPDATED",
+                            data = new { userId, userName, avatar, bio }
+                        };
 
-                    _pendingProfileData = null;
+                        string userJson = Newtonsoft.Json.JsonConvert.SerializeObject(userMsg);
+                        webView21.CoreWebView2.PostWebMessageAsJson(userJson);
+                    }
+
+                    if (_pendingProfileData != null)
+                    {
+                        var profileMsg = new
+                        {
+                            type = "PROFILE_DATA",
+                            data = _pendingProfileData
+                        };
+
+                        string profileJson = Newtonsoft.Json.JsonConvert.SerializeObject(profileMsg);
+                        webView21.CoreWebView2.PostWebMessageAsJson(profileJson);
+
+                        _pendingProfileData = null;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_currentProfileUserId))
+                    {
+                        string requestJson = Newtonsoft.Json.JsonConvert.SerializeObject(new
+                        {
+                            type = "GET_USER_PROFILE",
+                            data = new
+                            {
+                                userId = _currentProfileUserId
+                            }
+                        });
+
+                        string result = await _messageHandler.Handle(requestJson);
+
+                        if (result != null)
+                        {
+                            webView21.CoreWebView2.PostWebMessageAsJson(result);
+                        }
+                    }
                 }
 
-                // Chỉ polling feed khi đang ở trang Home
                 if (currentUrl != null && currentUrl.Contains("home.html"))
                 {
                     StartFeedPolling();
@@ -151,8 +189,34 @@ namespace MiniSocialApp
                         return;
                     }
 
+                    if (msg.type == "NAVIGATE_MY_PROFILE")
+                    {
+                        var userDict = CurrentUserStore.User as Dictionary<string, object>;
+
+                        if (userDict != null && userDict.ContainsKey("userId"))
+                        {
+                            _currentProfileUserId = userDict["userId"]?.ToString();
+                        }
+
+                        string profilePath = Path.Combine(Application.StartupPath, "UI", "Profile", "profile.html");
+                        webView21.CoreWebView2.Navigate(new Uri(profilePath).AbsoluteUri);
+                        return;
+                    }
+
                     if (msg.type == "NAVIGATE_PROFILE")
                     {
+                        try
+                        {
+                            if (msg.data != null && msg.data.userId != null)
+                            {
+                                _currentProfileUserId = msg.data.userId.ToString();
+                            }
+                        }
+                        catch
+                        {
+                            // Nếu không truyền userId thì giữ nguyên _currentProfileUserId hiện tại
+                        }
+
                         string profilePath = Path.Combine(Application.StartupPath, "UI", "Profile", "profile.html");
                         webView21.CoreWebView2.Navigate(new Uri(profilePath).AbsoluteUri);
                         return;
@@ -188,6 +252,17 @@ namespace MiniSocialApp
                         if (responseObj.type == "OPEN_PROFILE_PAGE")
                         {
                             _pendingProfileData = responseObj.data;
+
+                            try
+                            {
+                                _currentProfileUserId = responseObj.data.userId != null
+                                    ? (string)responseObj.data.userId
+                                    : null;
+                            }
+                            catch
+                            {
+                                _currentProfileUserId = null;
+                            }
 
                             string profilePath = Path.Combine(
                                 Application.StartupPath,

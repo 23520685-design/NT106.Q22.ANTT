@@ -105,11 +105,10 @@ function buildPostHTML(post) {
 
       <div class="post-content">
         <p>${escapeHTML(post.content || "")}</p>
-        ${
-          post.mediaUrl
-            ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
-            : ""
-        }
+        ${post.mediaUrl
+      ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
+      : ""
+    }
       </div>
 
       <div class="post-stats">
@@ -362,6 +361,9 @@ function bindModalEvents() {
   const modalContent = document.getElementById("modalContent");
 
   document.querySelectorAll(".post").forEach((post) => {
+    if (post.dataset.modalBound === "true") return;
+    post.dataset.modalBound = "true";
+
     const postContent = post.querySelector(".post-content");
     const postImage = post.querySelector(".post-image");
 
@@ -795,7 +797,7 @@ document.addEventListener("DOMContentLoaded", function () {
         break;
 
       case "profile":
-        sendToCSharp({ type: "NAVIGATE_PROFILE" });
+        sendToCSharp({ type: "NAVIGATE_MY_PROFILE" });
         break;
 
       default:
