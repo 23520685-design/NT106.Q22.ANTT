@@ -478,6 +478,7 @@ function renderProfilePosts(posts) {
   container.innerHTML = html;
   initProfileLikeButtons();
   initProfileCommentButtons();
+  initProfileMoreButtons();
 }
 
 function buildProfilePostHTML(post) {
@@ -540,6 +541,7 @@ function createProfilePostLocal(post) {
   container.insertAdjacentHTML("afterbegin", buildProfilePostHTML(post));
   initProfileLikeButtons();
   initProfileCommentButtons();
+  initProfileMoreButtons();
 }
 
 function getVisibilityText(value) {
@@ -615,6 +617,40 @@ function initProfileCommentButtons() {
 
       // Mở modal bình luận giống ở Home
       openProfileCommentModal(postId, post);
+    };
+  });
+}
+
+function initProfileMoreButtons() {
+  const moreButtons = document.querySelectorAll(".profile-more-btn");
+
+  moreButtons.forEach(function (button) {
+    button.onclick = function (e) {
+      e.stopPropagation();
+
+      const post = button.closest(".profile-post-card");
+      const postId = post ? post.dataset.postId : null;
+
+      if (!postId) return;
+
+      if (!isMyProfile()) {
+        showProfileToast("Bạn chỉ có thể xóa bài viết của mình");
+        return;
+      }
+
+      const ok = confirm("Bạn có chắc muốn xóa bài viết này không?");
+
+      if (!ok) return;
+
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+      profileSendToCSharp({
+        type: "DELETE_POST",
+        data: {
+          postId: postId,
+        },
+      });
     };
   });
 }
@@ -903,7 +939,39 @@ function initProfileWebViewMessages() {
       return;
     }
 
+    if (msg.type === "DELETE_POST_SUCCESS") {
+      const data = msg.data || {};
+      const postId = data.postId;
 
+      if (postId) {
+        const post = document.querySelector(
+          '.profile-post-card[data-post-id="' + postId + '"]'
+        );
+
+        if (post) {
+          post.remove();
+        }
+      }
+
+      showProfileToast("Đã xóa bài viết");
+
+      const remainPosts = document.querySelectorAll(".profile-post-card");
+
+      if (remainPosts.length === 0) {
+        const container = document.getElementById("profilePostsContainer");
+
+        if (container) {
+          container.innerHTML = `
+        <div class="profile-empty-state">
+          <h3>Chưa có bài viết</h3>
+          <p>Bạn chưa có bài viết nào.</p>
+        </div>
+      `;
+        }
+      }
+
+      return;
+    }
 
     if (msg.type === "UPDATE_PROFILE_SUCCESS") {
       const data = msg.data || {};

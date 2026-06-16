@@ -35,6 +35,11 @@ public class MessageHandler
                         await _postController.CreatePost(msg.data)
                     );
 
+                case "DELETE_POST":
+                    return JsonConvert.SerializeObject(
+                        await _postController.DeletePost(msg.data)
+                    );
+
                 case "GET_FEED":
                     return JsonConvert.SerializeObject(
                         await _postController.GetFeed()

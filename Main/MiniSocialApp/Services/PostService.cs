@@ -191,6 +191,41 @@ namespace MiniSocialApp.Services
             return posts;
         }
 
+        public async Task DeletePost(string postId)
+        {
+            if (string.IsNullOrWhiteSpace(postId))
+                throw new Exception("PostId không hợp lệ.");
+
+            var userDict = CurrentUserStore.User as Dictionary<string, object>;
+
+            if (userDict == null)
+                throw new Exception("Người dùng chưa đăng nhập.");
+
+            string currentUserId = userDict.ContainsKey("userId")
+                ? Convert.ToString(userDict["userId"])
+                : "";
+
+            if (string.IsNullOrWhiteSpace(currentUserId))
+                throw new Exception("UserId hiện tại không hợp lệ.");
+
+            var postRef = _db.Collection("posts").Document(postId);
+            var postSnap = await postRef.GetSnapshotAsync();
+
+            if (!postSnap.Exists)
+                throw new Exception("Bài viết không tồn tại.");
+
+            var postData = postSnap.ToDictionary();
+
+            string ownerId = postData.ContainsKey("userId")
+                ? Convert.ToString(postData["userId"])
+                : "";
+
+            if (ownerId != currentUserId)
+                throw new Exception("Bạn không có quyền xóa bài viết này.");
+
+            await postRef.DeleteAsync();
+        }
+
         private async Task<HashSet<string>> GetFollowingIds(string userId)
         {
             if (string.IsNullOrWhiteSpace(userId))

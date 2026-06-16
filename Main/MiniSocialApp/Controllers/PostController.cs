@@ -63,5 +63,23 @@ namespace MiniSocialApp.Controllers
                 data = posts
             };
         }
+
+        public async Task<object> DeletePost(dynamic data)
+        {
+            string postId = data.postId != null
+                ? (string)data.postId
+                : "";
+
+            await _postService.DeletePost(postId);
+
+            return new
+            {
+                type = "DELETE_POST_SUCCESS",
+                data = new
+                {
+                    postId = postId
+                }
+            };
+        }
     }
 }
