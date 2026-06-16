@@ -167,6 +167,7 @@ function renderFeed(posts) {
     container.innerHTML = allHTML;
     _renderedPostIds = new Set(posts.map((p) => p.postId));
     bindPostEvents();
+    bindPostMoreEvents();
     bindModalEvents();
     return;
   }
@@ -229,6 +230,7 @@ function renderFeed(posts) {
   if (hasNewPosts) {
     container.insertBefore(fragment, container.firstChild);
     bindPostEvents();
+    bindPostMoreEvents();
     bindModalEvents();
   }
 }
@@ -352,6 +354,33 @@ function bindPostEvents() {
         openPostModal(post, modal, modalContent, true);
         return;
       }
+    };
+  });
+}
+
+function bindPostMoreEvents() {
+  document.querySelectorAll(".post-more").forEach(function (button) {
+    button.onclick = function (e) {
+      e.stopPropagation();
+
+      const post = button.closest(".post");
+      const postId = post && post.dataset ? post.dataset.postId : null;
+
+      if (!postId) return;
+
+      const ok = confirm("Bạn có chắc muốn xóa bài viết này không?");
+
+      if (!ok) return;
+
+      button.disabled = true;
+      button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+      sendToCSharp({
+        type: "DELETE_POST",
+        data: {
+          postId: postId,
+        },
+      });
     };
   });
 }
@@ -1010,6 +1039,41 @@ document.addEventListener("DOMContentLoaded", function () {
 
         showLoadingSkeleton();
         loadFeed();
+        return;
+      }
+
+      if (msg.type === "DELETE_POST_SUCCESS") {
+        const data = msg.data || {};
+        const postId = data.postId;
+
+        if (postId) {
+          const posts = document.querySelectorAll(
+            '.post[data-post-id="' + postId + '"]'
+          );
+
+          posts.forEach(function (post) {
+            post.remove();
+          });
+
+          _renderedPostIds.delete(postId);
+        }
+
+        showToast("Đã xóa bài viết");
+
+        const remainPosts = document.querySelectorAll(".post[data-post-id]");
+
+        if (remainPosts.length === 0) {
+          const container = document.getElementById("postsContainer");
+
+          if (container) {
+            container.innerHTML = `
+        <div class="empty-feed">
+          <i class="fas fa-newspaper"></i>
+          <p>Chưa có bài viết nào. Hãy là người đầu tiên đăng bài!</p>
+        </div>`;
+          }
+        }
+
         return;
       }
 
