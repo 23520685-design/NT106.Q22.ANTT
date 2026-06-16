@@ -192,16 +192,160 @@ namespace MiniSocialApp.Services
                 p.ContainsKey("commentCount") ? Convert.ToInt32(p["commentCount"]) : 0
             );
 
+            var currentUserDict = CurrentUserStore.User as Dictionary<string, object>;
+
+            string currentUserId = currentUserDict != null && currentUserDict.ContainsKey("userId")
+                ? Convert.ToString(currentUserDict["userId"])
+                : "";
+
+            bool isFollowing = false;
+
+            if (!string.IsNullOrWhiteSpace(currentUserId) && currentUserId != userId)
+            {
+                string followId = currentUserId + "_" + userId;
+
+                var followDoc = await _db.Collection("follows")
+                    .Document(followId)
+                    .GetSnapshotAsync();
+
+                isFollowing = followDoc.Exists;
+            }
+
+            int followersCount = user.ContainsKey("followersCount")
+                ? Convert.ToInt32(user["followersCount"])
+                : 0;
+
+            int followingCount = user.ContainsKey("followingCount")
+                ? Convert.ToInt32(user["followingCount"])
+                : 0;
+
+            user["isFollowing"] = isFollowing;
+            user["followersCount"] = followersCount;
+            user["followingCount"] = followingCount;
+
             user["posts"] = posts;
+
             user["stats"] = new Dictionary<string, object>
-    {
-        { "posts", posts.Count },
-        { "likes", totalLikes },
-        { "comments", totalComments },
-        { "friends", user.ContainsKey("followersCount") ? user["followersCount"] : 0 }
-    };
+{
+    { "posts", posts.Count },
+    { "followers", followersCount },
+    { "following", followingCount },
+    { "likes", totalLikes },
+    { "comments", totalComments }
+};
 
             return user;
+        }
+
+        public async Task<Dictionary<string, object>> ToggleFollow(string targetUserId)
+        {
+            var currentUserDict = CurrentUserStore.User as Dictionary<string, object>;
+
+            if (currentUserDict == null)
+                throw new Exception("Người dùng chưa đăng nhập.");
+
+            string currentUserId = currentUserDict.ContainsKey("userId")
+                ? Convert.ToString(currentUserDict["userId"])
+                : "";
+
+            if (string.IsNullOrWhiteSpace(currentUserId))
+                throw new Exception("UserId hiện tại không hợp lệ.");
+
+            if (string.IsNullOrWhiteSpace(targetUserId))
+                throw new Exception("UserId cần follow không hợp lệ.");
+
+            if (currentUserId == targetUserId)
+                throw new Exception("Bạn không thể follow chính mình.");
+
+            var currentUserRef = _db.Collection("users").Document(currentUserId);
+            var targetUserRef = _db.Collection("users").Document(targetUserId);
+
+            string followId = currentUserId + "_" + targetUserId;
+            var followRef = _db.Collection("follows").Document(followId);
+
+            bool isFollowing = false;
+            int followersCount = 0;
+            int followingCount = 0;
+
+            await _db.RunTransactionAsync(async transaction =>
+            {
+                var followSnap = await transaction.GetSnapshotAsync(followRef);
+                var currentUserSnap = await transaction.GetSnapshotAsync(currentUserRef);
+                var targetUserSnap = await transaction.GetSnapshotAsync(targetUserRef);
+
+                if (!currentUserSnap.Exists)
+                    throw new Exception("Không tìm thấy người dùng hiện tại.");
+
+                if (!targetUserSnap.Exists)
+                    throw new Exception("Không tìm thấy người dùng cần follow.");
+
+                int targetFollowers = 0;
+                int currentFollowing = 0;
+
+                var targetData = targetUserSnap.ToDictionary();
+                var currentData = currentUserSnap.ToDictionary();
+
+                if (targetData.ContainsKey("followersCount"))
+                    targetFollowers = Convert.ToInt32(targetData["followersCount"]);
+
+                if (currentData.ContainsKey("followingCount"))
+                    currentFollowing = Convert.ToInt32(currentData["followingCount"]);
+
+                if (followSnap.Exists)
+                {
+                    transaction.Delete(followRef);
+
+                    targetFollowers = Math.Max(0, targetFollowers - 1);
+                    currentFollowing = Math.Max(0, currentFollowing - 1);
+
+                    transaction.Update(targetUserRef, new Dictionary<string, object>
+            {
+                { "followersCount", targetFollowers }
+            });
+
+                    transaction.Update(currentUserRef, new Dictionary<string, object>
+            {
+                { "followingCount", currentFollowing }
+            });
+
+                    isFollowing = false;
+                }
+                else
+                {
+                    transaction.Set(followRef, new Dictionary<string, object>
+            {
+                { "followerId", currentUserId },
+                { "followingId", targetUserId },
+                { "createdAt", Timestamp.GetCurrentTimestamp() }
+            });
+
+                    targetFollowers++;
+                    currentFollowing++;
+
+                    transaction.Update(targetUserRef, new Dictionary<string, object>
+            {
+                { "followersCount", targetFollowers }
+            });
+
+                    transaction.Update(currentUserRef, new Dictionary<string, object>
+            {
+                { "followingCount", currentFollowing }
+            });
+
+                    isFollowing = true;
+                }
+
+                followersCount = targetFollowers;
+                followingCount = currentFollowing;
+            });
+
+            return new Dictionary<string, object>
+    {
+        { "targetUserId", targetUserId },
+        { "isFollowing", isFollowing },
+        { "followersCount", followersCount },
+        { "followingCount", followingCount }
+    };
         }
     }
 }

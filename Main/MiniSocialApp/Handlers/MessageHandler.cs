@@ -81,6 +81,11 @@ public class MessageHandler
                         await _userController.GetUserProfile(msg.data)
                     );
 
+                case "TOGGLE_FOLLOW":
+                    return JsonConvert.SerializeObject(
+                        await _userController.ToggleFollow(msg.data)
+                    );
+
                 default:
                     return JsonConvert.SerializeObject(new
                     {

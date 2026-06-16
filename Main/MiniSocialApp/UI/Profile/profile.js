@@ -51,6 +51,7 @@ let profileCurrentUser = {
   bio: "",
 };
 
+let profileIsFollowing = false;
 
 document.addEventListener("DOMContentLoaded", function () {
   initProfileSidebar();
@@ -62,9 +63,9 @@ document.addEventListener("DOMContentLoaded", function () {
   initProfileWebViewMessages();
   initProfileMenu();
   initEditProfileModal();
+  initFollowButton();
 
   renderProfileUser(profileCurrentUser);
-
 });
 
 // ============================================================
@@ -859,12 +860,15 @@ function initProfileWebViewMessages() {
         bio: data.bio || "",
       });
 
+      profileIsFollowing = data.isFollowing === true;
+
       if (Array.isArray(data.posts)) {
         renderProfilePosts(data.posts);
       }
 
       updateProfileStats(data.stats || {});
       updateProfileActionButtons();
+      updateFollowButton(profileIsFollowing);
 
       return;
     }
@@ -925,6 +929,25 @@ function initProfileWebViewMessages() {
 
     if (msg.type === "LIKE_UPDATED") {
       updateProfileLikeState(msg.data || {});
+      return;
+    }
+
+    if (msg.type === "FOLLOW_UPDATED") {
+      const data = msg.data || {};
+
+      updateFollowButton(data.isFollowing === true);
+
+      updateProfileStats({
+        followers: data.followersCount,
+        following: data.followingCount,
+      });
+
+      if (data.isFollowing === true) {
+        showProfileToast("Đã follow người dùng");
+      } else {
+        showProfileToast("Đã bỏ follow");
+      }
+
       return;
     }
 
@@ -1025,6 +1048,58 @@ function initProfileWebViewMessages() {
   });
 }
 
+function initFollowButton() {
+  const followBtn = document.getElementById("btnFollowUser");
+
+  if (!followBtn) return;
+
+  followBtn.addEventListener("click", function () {
+    if (!profileViewingUserId) {
+      showProfileToast("Không tìm thấy người dùng cần follow");
+      return;
+    }
+
+    if (isMyProfile()) {
+      showProfileToast("Bạn không thể follow chính mình");
+      return;
+    }
+
+    if (followBtn.dataset.loading === "true") return;
+
+    followBtn.dataset.loading = "true";
+    followBtn.disabled = true;
+    followBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i><span>Đang xử lý...</span>';
+
+    profileSendToCSharp({
+      type: "TOGGLE_FOLLOW",
+      data: {
+        targetUserId: profileViewingUserId,
+      },
+    });
+  });
+}
+
+function updateFollowButton(isFollowing) {
+  const followBtn = document.getElementById("btnFollowUser");
+
+  if (!followBtn) return;
+
+  profileIsFollowing = isFollowing === true;
+
+  followBtn.disabled = false;
+  followBtn.dataset.loading = "false";
+
+  if (profileIsFollowing) {
+    followBtn.classList.remove("profile-primary-btn");
+    followBtn.classList.add("profile-secondary-btn");
+    followBtn.innerHTML = '<i class="fas fa-user-check"></i><span>Following</span>';
+  } else {
+    followBtn.classList.remove("profile-secondary-btn");
+    followBtn.classList.add("profile-primary-btn");
+    followBtn.innerHTML = '<i class="fas fa-user-plus"></i><span>Follow</span>';
+  }
+}
+
 function isMyProfile() {
   const loginId =
     profileLoggedInUser && profileLoggedInUser.userId != null
@@ -1042,10 +1117,16 @@ function isMyProfile() {
 function updateProfileActionButtons() {
   const editBtn = document.getElementById("btnEditProfile");
   const addStoryBtn = document.getElementById("btnAddStory");
+  const followBtn = document.getElementById("btnFollowUser");
+
   const canEdit = isMyProfile();
 
   if (editBtn) editBtn.style.display = canEdit ? "" : "none";
   if (addStoryBtn) addStoryBtn.style.display = canEdit ? "" : "none";
+
+  if (followBtn) {
+    followBtn.style.display = canEdit ? "none" : "";
+  }
 }
 
 function handleProfileImageSelected(data) {
@@ -1105,8 +1186,11 @@ function updateProfileLikeState(data) {
 }
 
 function updateProfileStats(stats) {
+  if (!stats) return;
+
   if (stats.posts != null) setText("statPosts", stats.posts);
-  if (stats.friends != null) setText("statFriends", stats.friends);
+  if (stats.followers != null) setText("statFollowers", stats.followers);
+  if (stats.following != null) setText("statFollowing", stats.following);
   if (stats.likes != null) setText("statLikes", stats.likes);
   if (stats.comments != null) setText("statComments", stats.comments);
 }

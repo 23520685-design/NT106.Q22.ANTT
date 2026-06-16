@@ -40,6 +40,21 @@ namespace MiniSocialApp.Controllers
             };
         }
 
+        public async Task<object> ToggleFollow(dynamic data)
+        {
+            string targetUserId = data.targetUserId != null
+                ? (string)data.targetUserId
+                : "";
+
+            var result = await _userService.ToggleFollow(targetUserId);
+
+            return new
+            {
+                type = "FOLLOW_UPDATED",
+                data = result
+            };
+        }
+
         public async Task<object> GetUserProfile(dynamic data)
         {
             string userId = data.userId != null ? (string)data.userId : "";
