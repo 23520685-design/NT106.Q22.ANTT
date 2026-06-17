@@ -81,5 +81,31 @@ namespace MiniSocialApp.Controllers
             };
         }
 
+        public async Task<object> GetFollowers(dynamic data)
+        {
+            string userId = data.userId != null ? (string)data.userId : "";
+
+            var followers = await _userService.GetFollowers(userId);
+
+            return new
+            {
+                type = "FOLLOWERS_DATA",
+                data = followers
+            };
+        }
+
+        public async Task<object> GetFollowing(dynamic data)
+        {
+            string userId = data.userId != null ? (string)data.userId : "";
+
+            var following = await _userService.GetFollowing(userId);
+
+            return new
+            {
+                type = "FOLLOWING_DATA",
+                data = following
+            };
+        }
+
     }
 }

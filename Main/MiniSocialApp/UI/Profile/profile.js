@@ -233,8 +233,38 @@ function renderProfileTab(tabName) {
   }
 
   if (tabName === "friends") {
-    title = "Bạn bè";
-    desc = "Danh sách bạn bè của người dùng sẽ hiển thị tại đây.";
+    tabContent.innerHTML = `
+    <div class="profile-follow-box profile-glass">
+      <div class="profile-follow-tabs">
+        <button class="profile-follow-tab active" data-follow-tab="followers">
+          Follower
+        </button>
+
+        <button class="profile-follow-tab" data-follow-tab="following">
+          Following
+        </button>
+      </div>
+
+      <div id="profileFollowList" class="profile-follow-list">
+        <div class="profile-empty-state">
+          <p>Đang tải danh sách follower...</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+    bindProfileFollowTabs();
+
+    if (profileViewingUserId) {
+      profileSendToCSharp({
+        type: "GET_FOLLOWERS",
+        data: {
+          userId: profileViewingUserId
+        }
+      });
+    }
+
+    return;
   }
 
   if (tabName === "photos") {
@@ -255,6 +285,107 @@ function renderProfileTab(tabName) {
   `;
 }
 
+function bindProfileFollowTabs() {
+  const tabs = document.querySelectorAll(".profile-follow-tab");
+
+  tabs.forEach(function (tab) {
+    tab.onclick = function () {
+      tabs.forEach(function (item) {
+        item.classList.remove("active");
+      });
+
+      tab.classList.add("active");
+
+      const followTab = tab.dataset.followTab;
+
+      const list = document.getElementById("profileFollowList");
+      if (list) {
+        list.innerHTML = `
+          <div class="profile-empty-state">
+            <p>Đang tải danh sách...</p>
+          </div>
+        `;
+      }
+
+      if (!profileViewingUserId) {
+        renderProfileFollowList([]);
+        return;
+      }
+
+      if (followTab === "followers") {
+        profileSendToCSharp({
+          type: "GET_FOLLOWERS",
+          data: {
+            userId: profileViewingUserId
+          }
+        });
+      } else {
+        profileSendToCSharp({
+          type: "GET_FOLLOWING",
+          data: {
+            userId: profileViewingUserId
+          }
+        });
+      }
+    };
+  });
+}
+
+function renderProfileFollowList(users) {
+  const list = document.getElementById("profileFollowList");
+
+  if (!list) return;
+
+  if (!users || users.length === 0) {
+    list.innerHTML = `
+      <div class="profile-empty-state">
+        <h3>Chưa có dữ liệu</h3>
+        <p>Danh sách này hiện đang trống.</p>
+      </div>
+    `;
+    return;
+  }
+
+  let html = "";
+
+  users.forEach(function (user) {
+    html += `
+      <div class="profile-follow-item" data-user-id="${profileEscapeHTML(user.userId)}">
+        <img
+          src="${profileEscapeHTML(user.avatar || "https://i.pravatar.cc/150?u=" + user.userId)}"
+          alt="${profileEscapeHTML(user.userName || "User")}"
+          onerror="this.src='https://i.pravatar.cc/150'"
+        />
+
+        <div class="profile-follow-info">
+          <strong>${profileEscapeHTML(user.userName || "Người dùng")}</strong>
+          <span>${profileEscapeHTML(user.bio || user.phone || "Mini Social App user")}</span>
+        </div>
+
+        <button class="profile-secondary-btn profile-open-user-btn">
+          Xem
+        </button>
+      </div>
+    `;
+  });
+
+  list.innerHTML = html;
+
+  document.querySelectorAll(".profile-follow-item").forEach(function (item) {
+    item.onclick = function () {
+      const userId = item.dataset.userId;
+
+      if (!userId) return;
+
+      profileSendToCSharp({
+        type: "NAVIGATE_PROFILE",
+        data: {
+          userId: userId
+        }
+      });
+    };
+  });
+}
 // ============================================================
 // MODAL CREATE POST
 // ============================================================
@@ -1016,6 +1147,16 @@ function initProfileWebViewMessages() {
         showProfileToast("Đã bỏ follow");
       }
 
+      return;
+    }
+
+    if (msg.type === "FOLLOWERS_DATA") {
+      renderProfileFollowList(msg.data || []);
+      return;
+    }
+
+    if (msg.type === "FOLLOWING_DATA") {
+      renderProfileFollowList(msg.data || []);
       return;
     }
 

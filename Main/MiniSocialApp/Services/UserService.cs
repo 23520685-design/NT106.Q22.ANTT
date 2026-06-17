@@ -347,5 +347,111 @@ namespace MiniSocialApp.Services
         { "followingCount", followingCount }
     };
         }
+
+        // Lấy danh sách người dùng mà user hiện tại đang follow
+        public async Task<List<Dictionary<string, object>>> GetFollowers(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new Exception("UserId không hợp lệ.");
+
+            var followSnapshot = await _db.Collection("follows")
+                .WhereEqualTo("followingId", userId)
+                .OrderByDescending("createdAt")
+                .Limit(50)
+                .GetSnapshotAsync();
+
+            var followerIds = followSnapshot.Documents
+                .Select(doc =>
+                {
+                    var data = doc.ToDictionary();
+                    return data.ContainsKey("followerId")
+                        ? Convert.ToString(data["followerId"])
+                        : "";
+                })
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToList();
+
+            var users = new List<Dictionary<string, object>>();
+
+            foreach (var followerId in followerIds)
+            {
+                var userDoc = await _db.Collection("users")
+                    .Document(followerId)
+                    .GetSnapshotAsync();
+
+                if (!userDoc.Exists)
+                    continue;
+
+                var user = userDoc.ToDictionary();
+
+                if (!user.ContainsKey("userId"))
+                    user["userId"] = userDoc.Id;
+
+                users.Add(new Dictionary<string, object>
+        {
+            { "userId", user.ContainsKey("userId") ? user["userId"] : userDoc.Id },
+            { "userName", user.ContainsKey("userName") ? user["userName"] : "Người dùng" },
+            { "avatar", user.ContainsKey("avatar") ? user["avatar"] : "" },
+            { "bio", user.ContainsKey("bio") ? user["bio"] : "" },
+            { "phone", user.ContainsKey("phone") ? user["phone"] : "" }
+        });
+            }
+
+            return users;
+        }
+
+        // Lấy danh sách người dùng mà user hiện tại đang follow
+        public async Task<List<Dictionary<string, object>>> GetFollowing(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(userId))
+                throw new Exception("UserId không hợp lệ.");
+
+            var followSnapshot = await _db.Collection("follows")
+                .WhereEqualTo("followerId", userId)
+                .OrderByDescending("createdAt")
+                .Limit(50)
+                .GetSnapshotAsync();
+
+            var followingIds = followSnapshot.Documents
+                .Select(doc =>
+                {
+                    var data = doc.ToDictionary();
+                    return data.ContainsKey("followingId")
+                        ? Convert.ToString(data["followingId"])
+                        : "";
+                })
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct()
+                .ToList();
+
+            var users = new List<Dictionary<string, object>>();
+
+            foreach (var followingId in followingIds)
+            {
+                var userDoc = await _db.Collection("users")
+                    .Document(followingId)
+                    .GetSnapshotAsync();
+
+                if (!userDoc.Exists)
+                    continue;
+
+                var user = userDoc.ToDictionary();
+
+                if (!user.ContainsKey("userId"))
+                    user["userId"] = userDoc.Id;
+
+                users.Add(new Dictionary<string, object>
+        {
+            { "userId", user.ContainsKey("userId") ? user["userId"] : userDoc.Id },
+            { "userName", user.ContainsKey("userName") ? user["userName"] : "Người dùng" },
+            { "avatar", user.ContainsKey("avatar") ? user["avatar"] : "" },
+            { "bio", user.ContainsKey("bio") ? user["bio"] : "" },
+            { "phone", user.ContainsKey("phone") ? user["phone"] : "" }
+        });
+            }
+
+            return users;
+        }
     }
 }

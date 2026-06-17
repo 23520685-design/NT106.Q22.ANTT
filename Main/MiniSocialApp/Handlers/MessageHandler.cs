@@ -91,6 +91,16 @@ public class MessageHandler
                         await _userController.ToggleFollow(msg.data)
                     );
 
+                case "GET_FOLLOWERS":
+                    return JsonConvert.SerializeObject(
+                        await _userController.GetFollowers(msg.data)
+                    );
+
+                case "GET_FOLLOWING":
+                    return JsonConvert.SerializeObject(
+                        await _userController.GetFollowing(msg.data)
+                    );
+
                 default:
                     return JsonConvert.SerializeObject(new
                     {

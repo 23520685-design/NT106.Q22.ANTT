@@ -1890,3 +1890,109 @@ img {
   background: var(--p-primary);
   color: #fff;
 }
+
+/* =========================================================
+   FOLLOW LIST
+========================================================= */
+
+.profile-follow-box {
+  width: 100%;
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 16px;
+}
+
+.profile-follow-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 14px;
+  background: var(--p-surface-option);
+  margin-bottom: 16px;
+}
+
+.profile-follow-tab {
+  flex: 1;
+  min-height: 42px;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--p-text-secondary);
+  font-size: 14px;
+  font-weight: 800;
+  transition: var(--p-transition);
+}
+
+.profile-follow-tab:hover {
+  background: var(--p-surface-card);
+  color: var(--p-primary);
+}
+
+.profile-follow-tab.active {
+  background: var(--p-primary-soft);
+  color: var(--p-primary);
+}
+
+.profile-follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-follow-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--p-glass-border);
+  border-radius: 14px;
+  background: var(--p-surface-card);
+  cursor: pointer;
+  transition: var(--p-transition);
+}
+
+.profile-follow-item:hover {
+  background: var(--p-surface-option);
+  transform: translateY(-1px);
+}
+
+.profile-follow-item img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--p-glass-border);
+  flex-shrink: 0;
+}
+
+.profile-follow-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-follow-info strong {
+  display: block;
+  color: var(--p-text-primary);
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-follow-info span {
+  display: block;
+  margin-top: 3px;
+  color: var(--p-text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-open-user-btn {
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
