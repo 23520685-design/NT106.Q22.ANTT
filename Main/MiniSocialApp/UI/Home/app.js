@@ -105,8 +105,14 @@ function buildPostHTML(post) {
 
       <div class="post-content">
         <p>${escapeHTML(post.content || "")}</p>
+
         ${post.mediaUrl
       ? `<div class="post-image"><img src="${escapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" loading="lazy" /></div>`
+      : ""
+    }
+
+        ${post.postType === "share" && post.originalPost
+      ? buildSharedPostPreviewHTML(post.originalPost)
       : ""
     }
       </div>
@@ -137,6 +143,39 @@ function buildPostHTML(post) {
       </div>
     </article>`;
 }
+
+function buildSharedPostPreviewHTML(originalPost) {
+  if (!originalPost) return "";
+
+  return `
+    <div class="shared-post-preview shared-post-clickable"
+         data-original-user-id="${escapeHTML(originalPost.userId || "")}"
+         data-original-post-id="${escapeHTML(originalPost.postId || "")}">
+      <div class="shared-post-author">
+        <img
+          src="${escapeHTML(originalPost.avatar || "https://i.pravatar.cc/150?u=" + originalPost.userId)}"
+          alt="${escapeHTML(originalPost.userName || "User")}"
+          onerror="this.src='https://i.pravatar.cc/150'"
+        />
+
+        <div>
+          <strong>${escapeHTML(originalPost.userName || "Ẩn danh")}</strong>
+          <span>${formatTime(originalPost.createdAt)}</span>
+        </div>
+      </div>
+
+      <p>${escapeHTML(originalPost.content || "")}</p>
+
+      ${originalPost.mediaUrl
+      ? `<div class="shared-post-image">
+            <img src="${escapeHTML(originalPost.mediaUrl)}" alt="Ảnh bài viết gốc" />
+           </div>`
+      : ""
+    }
+    </div>
+  `;
+}
+
 
 // ============================================================
 // DIFF RENDER FEED
@@ -302,9 +341,10 @@ function bindModalPostActions(modalContent) {
   if (shareBtn) {
     shareBtn.onclick = function (e) {
       e.stopPropagation();
-      showToast("Chức năng chia sẻ chưa được hỗ trợ");
+      openShareModal(postId); // ← dùng postId đã lấy ở đầu hàm bindModalPostActions
     };
   }
+
 }
 
 // Hàm này bind các nút like/comment/share ở mỗi post trong feed (không phải trong modal)
@@ -354,9 +394,16 @@ function bindPostEvents() {
         openPostModal(post, modal, modalContent, true);
         return;
       }
+
+      // SHARE
+      if (this.classList.contains("share-btn")) {
+        openShareModal(postId);
+        return;
+      }
     };
   });
 }
+
 
 function bindPostMoreEvents() {
   document.querySelectorAll(".post-more").forEach(function (button) {
@@ -411,6 +458,21 @@ function bindModalEvents() {
       });
     }
 
+    // Click vào bài gốc (shared preview) → navigate tới profile tác giả bài gốc
+    const sharedPreview = post.querySelector(".shared-post-clickable");
+    if (sharedPreview) {
+      sharedPreview.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const userId = sharedPreview.dataset.originalUserId;
+        if (userId) {
+          sendToCSharp({
+            type: "OPEN_USER_PROFILE",
+            data: { userId: userId }
+          });
+        }
+      });
+    }
+
     post
       .querySelectorAll(".post-btn, .post-more, .resize-handle")
       .forEach((el) => {
@@ -418,6 +480,7 @@ function bindModalEvents() {
       });
   });
 }
+
 
 // ============================================================
 // MODAL
@@ -478,6 +541,128 @@ function closePostModal(modal) {
 
   _currentModalPostId = null;
   _currentModalPostElement = null;
+}
+
+// SHARE
+let _sharingPostId = null;
+
+function openShareModal(postId) {
+  if (!postId) return;
+
+  _sharingPostId = postId;
+
+  let modal = document.getElementById("sharePostModal");
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "sharePostModal";
+    modal.className = "share-modal hidden";
+
+    modal.innerHTML = `
+      <div class="share-modal-card">
+        <div class="share-modal-header">
+          <h3>
+            <i class="fas fa-share-square"></i>
+            Chia sẻ bài viết
+          </h3>
+
+          <button id="closeShareModal" class="share-modal-close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <textarea
+          id="sharePostContent"
+          class="share-modal-textarea"
+          rows="4"
+          placeholder="Viết gì đó cho bài chia sẻ này..."
+        ></textarea>
+
+        <select id="sharePostVisibility" class="share-modal-select">
+          <option value="public">🌐 Công khai</option>
+          <option value="followers">👥 Chỉ follower</option>
+          <option value="private">🔒 Riêng tư</option>
+        </select>
+
+        <div class="share-modal-footer">
+          <button id="cancelSharePost" class="share-cancel-btn">
+            Hủy
+          </button>
+
+          <button id="confirmSharePost" class="share-confirm-btn">
+            <i class="fas fa-paper-plane"></i>
+            Chia sẻ
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("closeShareModal").onclick = closeShareModal;
+    document.getElementById("cancelSharePost").onclick = closeShareModal;
+    document.getElementById("confirmSharePost").onclick = submitSharePost;
+
+    modal.onclick = function (e) {
+      if (e.target === modal) {
+        closeShareModal();
+      }
+    };
+  }
+
+  const input = document.getElementById("sharePostContent");
+  const visibility = document.getElementById("sharePostVisibility");
+  const btn = document.getElementById("confirmSharePost");
+
+  if (input) input.value = "";
+  if (visibility) visibility.value = "public";
+
+  if (btn) {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane"></i> Chia sẻ';
+  }
+
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+
+  setTimeout(function () {
+    if (input) input.focus();
+  }, 100);
+}
+
+function closeShareModal() {
+  const modal = document.getElementById("sharePostModal");
+
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+
+  document.body.style.overflow = "";
+  _sharingPostId = null;
+}
+
+function submitSharePost() {
+  if (!_sharingPostId) return;
+
+  const input = document.getElementById("sharePostContent");
+  const visibility = document.getElementById("sharePostVisibility");
+  const btn = document.getElementById("confirmSharePost");
+
+  const content = input ? input.value.trim() : "";
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang chia sẻ...';
+  }
+
+  sendToCSharp({
+    type: "SHARE_POST",
+    data: {
+      postId: _sharingPostId,
+      content: content,
+      visibility: visibility ? visibility.value : "public"
+    }
+  });
 }
 
 // ============================================================
@@ -1146,6 +1331,15 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      // SHARE POST SUCCESS
+      if (msg.type === "SHARE_POST_SUCCESS") {
+        closeShareModal();
+        showToast("Đã chia sẻ bài viết về trang cá nhân");
+        showLoadingSkeleton();
+        loadFeed();
+        return;
+      }
+
       // COMMENTS DATA
       if (msg.type === "COMMENTS_DATA") {
         const data = msg.data || {};
@@ -1235,6 +1429,13 @@ document.addEventListener("DOMContentLoaded", function () {
         if (sendBtn) {
           sendBtn.disabled = false;
           sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi';
+        }
+
+        // Reset nút Chia sẻ nếu share bị lỗi
+        const confirmShareBtn = document.getElementById("confirmSharePost");
+        if (confirmShareBtn) {
+          confirmShareBtn.disabled = false;
+          confirmShareBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Chia sẻ';
         }
 
         showToast(msg.message || "Có lỗi xảy ra");

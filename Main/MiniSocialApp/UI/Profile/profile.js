@@ -593,8 +593,8 @@ function renderProfilePosts(posts) {
   if (!posts || posts.length === 0) {
     container.innerHTML = `
       <div class="profile-empty-state">
-        <h3>Chưa có bài viết</h3>
-        <p>Người dùng này chưa đăng bài viết nào.</p>
+        <h3>Ch\u01b0a c\u00f3 b\u00e0i vi\u1ebft</h3>
+        <p>Ng\u01b0\u1eddi d\u00f9ng n\u00e0y ch\u01b0a \u0111\u0103ng b\u00e0i vi\u1ebft n\u00e0o.</p>
       </div>
     `;
     return;
@@ -610,11 +610,44 @@ function renderProfilePosts(posts) {
   initProfileLikeButtons();
   initProfileCommentButtons();
   initProfileMoreButtons();
+  initProfileShareButtons();
+  initProfileSharedPostClicks();
+}
+
+function buildProfileSharedPostHTML(originalPost) {
+  if (!originalPost) return "";
+
+  return `
+    <div class="shared-post-preview profile-shared-post-clickable"
+         data-original-user-id="${profileEscapeHTML(originalPost.userId || "")}"
+         data-original-post-id="${profileEscapeHTML(originalPost.postId || "")}">
+      <div class="shared-post-author">
+        <img
+          src="${profileEscapeHTML(originalPost.avatar || "https://i.pravatar.cc/150?u=" + originalPost.userId)}"
+          alt="${profileEscapeHTML(originalPost.userName || "User")}"
+          onerror="this.src='https://i.pravatar.cc/150'"
+        />
+        <div>
+          <strong>${profileEscapeHTML(originalPost.userName || "\u1ea8n danh")}</strong>
+          <span>${profileFormatTime(originalPost.createdAt)}</span>
+        </div>
+      </div>
+      <p>${profileEscapeHTML(originalPost.content || "")}</p>
+      ${originalPost.mediaUrl
+        ? `<div class="shared-post-image"><img src="${profileEscapeHTML(originalPost.mediaUrl)}" alt="\u1ea2nh b\u00e0i vi\u1ebft g\u1ed1c" /></div>`
+        : ""
+      }
+    </div>
+  `;
 }
 
 function buildProfilePostHTML(post) {
   const likedClass = post.isLiked ? "liked" : "";
   const visibilityText = getVisibilityText(post.visibility);
+
+  const sharedPreview = (post.postType === "share" && post.originalPost)
+    ? buildProfileSharedPostHTML(post.originalPost)
+    : "";
 
   return `
     <article class="profile-post-card profile-glass" data-post-id="${profileEscapeHTML(post.postId)}">
@@ -626,8 +659,8 @@ function buildProfilePostHTML(post) {
             onerror="this.src='https://i.pravatar.cc/150'"
           />
           <div>
-            <h4>${profileEscapeHTML(post.userName || "Ẩn danh")}</h4>
-            <span>${profileFormatTime(post.createdAt)} · ${profileEscapeHTML(visibilityText)}</span>
+            <h4>${profileEscapeHTML(post.userName || "\u1ea8n danh")}</h4>
+            <span>${profileFormatTime(post.createdAt)} \u00b7 ${profileEscapeHTML(visibilityText)}</span>
           </div>
         </div>
 
@@ -639,21 +672,23 @@ function buildProfilePostHTML(post) {
       </div>
 
       ${post.mediaUrl
-      ? `<div class="profile-post-real-image"><img src="${profileEscapeHTML(post.mediaUrl)}" alt="Ảnh bài viết" /></div>`
+      ? `<div class="profile-post-real-image"><img src="${profileEscapeHTML(post.mediaUrl)}" alt="\u1ea2nh b\u00e0i vi\u1ebft" /></div>`
       : post.hasDemoImage
         ? `<div class="profile-post-image"></div>`
         : ""
     }
 
+      ${sharedPreview}
+
       <div class="profile-post-stats">
-        <span>${post.likeCount || 0} lượt thích</span>
-        <span>${post.commentCount || 0} bình luận</span>
+        <span>${post.likeCount || 0} l\u01b0\u1ee3t th\u00edch</span>
+        <span>${post.commentCount || 0} b\u00ecnh lu\u1eadn</span>
       </div>
 
       <div class="profile-post-actions">
-        <button class="profile-like-btn ${likedClass}"><i class="${post.isLiked ? "fas" : "far"} fa-thumbs-up"></i><span>${post.isLiked ? "Đã thích" : "Thích"}</span></button>
-        <button class="profile-comment-btn"><i class="far fa-comment-alt"></i><span>Bình luận</span></button>
-        <button class="profile-share-btn"><i class="far fa-share-square"></i><span>Chia sẻ</span></button>
+        <button class="profile-like-btn ${likedClass}"><i class="${post.isLiked ? "fas" : "far"} fa-thumbs-up"></i><span>${post.isLiked ? "\u0110\u00e3 th\u00edch" : "Th\u00edch"}</span></button>
+        <button class="profile-comment-btn"><i class="far fa-comment-alt"></i><span>B\u00ecnh lu\u1eadn</span></button>
+        <button class="profile-share-btn"><i class="far fa-share-square"></i><span>Chia s\u1ebb</span></button>
       </div>
     </article>
   `;
@@ -673,6 +708,8 @@ function createProfilePostLocal(post) {
   initProfileLikeButtons();
   initProfileCommentButtons();
   initProfileMoreButtons();
+  initProfileShareButtons();
+  initProfileSharedPostClicks();
 }
 
 function getVisibilityText(value) {
@@ -765,11 +802,11 @@ function initProfileMoreButtons() {
       if (!postId) return;
 
       if (!isMyProfile()) {
-        showProfileToast("Bạn chỉ có thể xóa bài viết của mình");
+        showProfileToast("B\u1ea1n ch\u1ec9 c\u00f3 th\u1ec3 x\u00f3a b\u00e0i vi\u1ebft c\u1ee7a m\u00ecnh");
         return;
       }
 
-      const ok = confirm("Bạn có chắc muốn xóa bài viết này không?");
+      const ok = confirm("B\u1ea1n c\u00f3 ch\u1eafc mu\u1ed1n x\u00f3a b\u00e0i vi\u1ebft n\u00e0y kh\u00f4ng?");
 
       if (!ok) return;
 
@@ -782,6 +819,35 @@ function initProfileMoreButtons() {
           postId: postId,
         },
       });
+    };
+  });
+}
+
+// Init share buttons on profile posts
+function initProfileShareButtons() {
+  document.querySelectorAll(".profile-share-btn").forEach(function (button) {
+    button.onclick = function (e) {
+      e.stopPropagation();
+      const post = button.closest(".profile-post-card");
+      const postId = post ? post.dataset.postId : null;
+      if (!postId) return;
+      openProfileShareModal(postId);
+    };
+  });
+}
+
+// Click on shared post preview → navigate to original author's profile
+function initProfileSharedPostClicks() {
+  document.querySelectorAll(".profile-shared-post-clickable").forEach(function (el) {
+    el.onclick = function (e) {
+      e.stopPropagation();
+      const userId = el.dataset.originalUserId;
+      if (userId) {
+        profileSendToCSharp({
+          type: "NAVIGATE_PROFILE",
+          data: { userId: userId }
+        });
+      }
     };
   });
 }
@@ -990,6 +1056,110 @@ function resetProfilePostModal() {
 
 let profileLoggedInUser = null;
 let profileViewingUserId = null;
+let _profileSharingPostId = null;
+
+function openProfileShareModal(postId) {
+  if (!postId) return;
+  _profileSharingPostId = postId;
+
+  let modal = document.getElementById("profileSharePostModal");
+
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "profileSharePostModal";
+    modal.className = "share-modal hidden";
+
+    modal.innerHTML = `
+      <div class="share-modal-card">
+        <div class="share-modal-header">
+          <h3>
+            <i class="fas fa-share-square"></i>
+            Chia sẻ bài viết
+          </h3>
+          <button id="closeProfileShareModal" class="share-modal-close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+
+        <textarea
+          id="profileSharePostContent"
+          class="share-modal-textarea"
+          rows="4"
+          placeholder="Viết gì đó cho bài chia sẻ này..."
+        ></textarea>
+
+        <select id="profileSharePostVisibility" class="share-modal-select">
+          <option value="public">🌐 Công khai</option>
+          <option value="followers">👥 Chỉ follower</option>
+          <option value="private">🔒 Riêng tư</option>
+        </select>
+
+        <div class="share-modal-footer">
+          <button id="cancelProfileSharePost" class="share-cancel-btn">Hủy</button>
+          <button id="confirmProfileSharePost" class="share-confirm-btn">
+            <i class="fas fa-paper-plane"></i>
+            Chia sẻ
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    document.getElementById("closeProfileShareModal").onclick = closeProfileShareModal;
+    document.getElementById("cancelProfileSharePost").onclick = closeProfileShareModal;
+    document.getElementById("confirmProfileSharePost").onclick = submitProfileSharePost;
+
+    modal.onclick = function (e) {
+      if (e.target === modal) closeProfileShareModal();
+    };
+  }
+
+  const input = document.getElementById("profileSharePostContent");
+  const visibility = document.getElementById("profileSharePostVisibility");
+  const btn = document.getElementById("confirmProfileSharePost");
+
+  if (input) input.value = "";
+  if (visibility) visibility.value = "public";
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Chia sẻ'; }
+
+  modal.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+
+  setTimeout(function () { if (input) input.focus(); }, 100);
+}
+
+function closeProfileShareModal() {
+  const modal = document.getElementById("profileSharePostModal");
+  if (modal) modal.classList.add("hidden");
+  document.body.style.overflow = "";
+  _profileSharingPostId = null;
+}
+
+function submitProfileSharePost() {
+  if (!_profileSharingPostId) return;
+
+  const input = document.getElementById("profileSharePostContent");
+  const visibility = document.getElementById("profileSharePostVisibility");
+  const btn = document.getElementById("confirmProfileSharePost");
+
+  const content = input ? input.value.trim() : "";
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang chia sẻ...';
+  }
+
+  profileSendToCSharp({
+    type: "SHARE_POST",
+    data: {
+      postId: _profileSharingPostId,
+      content: content,
+      visibility: visibility ? visibility.value : "public"
+    }
+  });
+}
+
 
 function initProfileWebViewMessages() {
   if (!(window.chrome && window.chrome.webview)) return;
@@ -1057,9 +1227,29 @@ function initProfileWebViewMessages() {
 
     if (msg.type === "CREATE_POST_SUCCESS") {
       resetProfilePostModal();
-      showProfileToast("Đăng bài thành công");
+      showProfileToast("\u0110\u0103ng b\u00e0i th\u00e0nh c\u00f4ng");
       closeProfilePostModal();
 
+      if (profileViewingUserId) {
+        profileSendToCSharp({
+          type: "GET_USER_PROFILE",
+          data: { userId: profileViewingUserId }
+        });
+      }
+
+      return;
+    }
+
+    if (msg.type === "SHARE_POST_SUCCESS") {
+      showProfileToast("\u0110\u00e3 chia s\u1ebb b\u00e0i vi\u1ebft v\u1ec1 trang c\u00e1 nh\u00e2n");
+
+      // Close share modal nếu đang mở
+      var shareModal = document.getElementById("profileSharePostModal");
+      if (shareModal) shareModal.classList.add("hidden");
+      document.body.style.overflow = "";
+      _profileSharingPostId = null;
+
+      // Reload posts
       if (profileViewingUserId) {
         profileSendToCSharp({
           type: "GET_USER_PROFILE",

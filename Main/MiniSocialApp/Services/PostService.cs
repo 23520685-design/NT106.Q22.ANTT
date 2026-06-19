@@ -112,6 +112,9 @@ namespace MiniSocialApp.Services
 
             var posts = newest.Concat(randomizedOlderPosts).ToList();
 
+            // Fetch bài gốc cho các bài share
+            await FetchOriginalPostsAsync(posts);
+
             if (!string.IsNullOrEmpty(currentUserId))
             {
                 var likeTasks = posts.Select(async post =>
@@ -165,6 +168,9 @@ namespace MiniSocialApp.Services
 
                 return data;
             }).ToList();
+
+            // Fetch bài gốc cho các bài share
+            await FetchOriginalPostsAsync(posts);
 
             // Kiểm tra isLiked cho current user
             if (!string.IsNullOrEmpty(currentUserId))
@@ -226,6 +232,44 @@ namespace MiniSocialApp.Services
             await postRef.DeleteAsync();
         }
 
+        // Fetch bài gốc cho tất cả bài share trong danh sách
+        public async Task FetchOriginalPostsAsync(List<Dictionary<string, object>> posts)
+        {
+            var sharePosts = posts
+                .Where(p => p.ContainsKey("postType") && p["postType"]?.ToString() == "share"
+                         && p.ContainsKey("sharedPostId") && !string.IsNullOrWhiteSpace(p["sharedPostId"]?.ToString()))
+                .ToList();
+
+            if (sharePosts.Count == 0) return;
+
+            var fetchTasks = sharePosts.Select(async post =>
+            {
+                string sharedPostId = post["sharedPostId"]?.ToString();
+                try
+                {
+                    var origDoc = await _db.Collection("posts").Document(sharedPostId).GetSnapshotAsync();
+                    if (origDoc.Exists)
+                    {
+                        var origData = origDoc.ToDictionary();
+                        origData["postId"] = origDoc.Id;
+
+                        if (origData.ContainsKey("createdAt") && origData["createdAt"] is Timestamp origTs)
+                        {
+                            origData["createdAt"] = origTs.ToDateTime().ToUniversalTime();
+                        }
+
+                        post["originalPost"] = origData;
+                    }
+                }
+                catch
+                {
+                    // Bài gốc không tồn tại hoặc bị lỗi → bỏ qua
+                }
+            });
+
+            await Task.WhenAll(fetchTasks);
+        }
+
         private async Task<HashSet<string>> GetFollowingIds(string userId)
         {
             if (string.IsNullOrWhiteSpace(userId))
@@ -238,6 +282,73 @@ namespace MiniSocialApp.Services
             return new HashSet<string>(
                 snapshot.Documents.Select(d => d.GetValue<string>("followingId"))
             );
+        }
+
+        // Chia sẻ bài viết
+        // Chia sẻ bài viết
+        public async Task<Dictionary<string, object>> SharePost(
+            string currentUserId,
+            string originalPostId,
+            string content,
+            string visibility = "public")
+        {
+            if (string.IsNullOrWhiteSpace(currentUserId))
+                throw new Exception("Bạn chưa đăng nhập.");
+
+            if (string.IsNullOrWhiteSpace(originalPostId))
+                throw new Exception("Không tìm thấy bài viết cần chia sẻ.");
+
+            if (visibility != "public" && visibility != "followers" && visibility != "private")
+                visibility = "public";
+
+            var originalPostRef = _db.Collection("posts").Document(originalPostId);
+            var originalPostDoc = await originalPostRef.GetSnapshotAsync();
+
+            if (!originalPostDoc.Exists)
+                throw new Exception("Bài viết gốc không tồn tại hoặc đã bị xóa.");
+
+            var originalPost = originalPostDoc.ToDictionary();
+            originalPost["postId"] = originalPostDoc.Id;
+
+            if (originalPost.ContainsKey("createdAt") && originalPost["createdAt"] is Timestamp originalTs)
+            {
+                originalPost["createdAt"] = originalTs.ToDateTime().ToUniversalTime();
+            }
+
+            var userDict = CurrentUserStore.User as Dictionary<string, object>;
+
+            if (userDict == null)
+                throw new Exception("Người dùng chưa đăng nhập.");
+
+            string userName = userDict.ContainsKey("userName")
+                ? Convert.ToString(userDict["userName"])
+                : "Người dùng";
+
+            string avatar = userDict.ContainsKey("avatar")
+                ? Convert.ToString(userDict["avatar"])
+                : "";
+
+            var sharePost = new Dictionary<string, object>
+    {
+        { "content", content != null ? content.Trim() : "" },
+        { "mediaUrl", null },
+        { "userId", currentUserId },
+        { "userName", userName },
+        { "avatar", avatar },
+        { "visibility", visibility },
+        { "postType", "share" },
+        { "sharedPostId", originalPostId },
+        { "likeCount", 0 },
+        { "commentCount", 0 },
+        { "createdAt", Timestamp.GetCurrentTimestamp() }
+    };
+
+            DocumentReference docRef = await _db.Collection("posts").AddAsync(sharePost);
+
+            sharePost["postId"] = docRef.Id;
+            sharePost["originalPost"] = originalPost;
+
+            return sharePost;
         }
     }
 }

@@ -40,6 +40,11 @@ public class MessageHandler
                         await _postController.DeletePost(msg.data)
                     );
 
+                case "SHARE_POST":
+                    return JsonConvert.SerializeObject(
+                        await _postController.SharePost(msg.data)
+                    );
+
                 case "GET_FEED":
                     return JsonConvert.SerializeObject(
                         await _postController.GetFeed()
@@ -101,12 +106,15 @@ public class MessageHandler
                         await _userController.GetFollowing(msg.data)
                     );
 
+
                 default:
                     return JsonConvert.SerializeObject(new
                     {
                         type = "ERROR",
                         message = $"Unknown message type: {type}"
                     });
+
+
             }
         }
         catch (System.Exception ex)

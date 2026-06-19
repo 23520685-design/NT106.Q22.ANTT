@@ -1996,3 +1996,238 @@ img {
   border-radius: 999px;
   flex-shrink: 0;
 }
+
+/* =========================================================
+   SHARED POST PREVIEW (in Profile)
+========================================================= */
+
+.shared-post-preview {
+  margin-top: 12px;
+  border: 1px solid var(--p-glass-border);
+  border-radius: 14px;
+  background: var(--p-surface-option);
+  overflow: hidden;
+  padding: 14px;
+}
+
+.shared-post-author {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.shared-post-author img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--p-glass-border);
+  object-fit: cover;
+}
+
+.shared-post-author strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--p-text-primary);
+}
+
+.shared-post-author span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--p-text-muted);
+}
+
+.shared-post-preview p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--p-text-primary);
+  margin-bottom: 10px;
+}
+
+.shared-post-image {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--p-glass-border);
+}
+
+.shared-post-image img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.profile-shared-post-clickable {
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.profile-shared-post-clickable:hover {
+  border-color: var(--p-primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+/* =========================================================
+   SHARE MODAL (reused from Home style)
+========================================================= */
+
+.share-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 15, 30, 0.5);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.share-modal.hidden {
+  display: none;
+}
+
+.share-modal-card {
+  background: var(--p-surface-card);
+  border: 1px solid var(--p-glass-border);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+  width: 100%;
+  max-width: 520px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  animation: shareCardIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes shareCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.share-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.share-modal-header h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--p-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.share-modal-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--p-surface-option);
+  border: 1px solid var(--p-glass-border);
+  color: var(--p-text-secondary);
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--p-transition);
+}
+
+.share-modal-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--p-danger);
+}
+
+.share-modal-textarea {
+  width: 100%;
+  min-height: 100px;
+  background: var(--p-surface-input);
+  border: 1px solid var(--p-glass-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 15px;
+  color: var(--p-text-primary);
+  resize: vertical;
+  outline: none;
+  transition: var(--p-transition);
+}
+
+.share-modal-textarea:focus {
+  border-color: var(--p-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.share-modal-select {
+  width: 100%;
+  background: var(--p-surface-input);
+  border: 1px solid var(--p-glass-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--p-text-primary);
+  outline: none;
+  cursor: pointer;
+  transition: var(--p-transition);
+}
+
+.share-modal-select:focus {
+  border-color: var(--p-primary);
+}
+
+.share-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.share-cancel-btn {
+  padding: 10px 20px;
+  border-radius: 10px;
+  background: var(--p-surface-option);
+  border: 1px solid var(--p-glass-border);
+  color: var(--p-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  transition: var(--p-transition);
+}
+
+.share-cancel-btn:hover {
+  background: var(--p-surface-post);
+  color: var(--p-text-primary);
+}
+
+.share-confirm-btn {
+  padding: 10px 22px;
+  border-radius: 10px;
+  background: var(--p-primary);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--p-transition);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.22);
+}
+
+.share-confirm-btn:hover {
+  background: var(--p-primary-dark);
+  transform: translateY(-1px);
+}
+
+.share-confirm-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}

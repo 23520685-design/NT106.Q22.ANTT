@@ -59,7 +59,7 @@ namespace MiniSocialApp
             var likeService = new LikeService(firestoreContext);
             var likeController = new LikeController(likeService);
 
-            var userService = new UserService(firestoreContext);
+            var userService = new UserService(firestoreContext, postService);
             var userController = new UserController(userService);
 
             var commentService = new CommentService(firestoreContext);

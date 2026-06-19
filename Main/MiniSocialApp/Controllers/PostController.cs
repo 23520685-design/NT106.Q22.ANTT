@@ -81,5 +81,40 @@ namespace MiniSocialApp.Controllers
                 }
             };
         }
+
+        public async Task<object> SharePost(dynamic data)
+        {
+            string postId = data.postId != null ? (string)data.postId : "";
+            string content = data.content != null ? (string)data.content : "";
+            string visibility = data.visibility != null ? (string)data.visibility : "public";
+
+            string currentUserId = "";
+
+            var userDict = MiniSocialApp.CurrentUserStore.User
+                as System.Collections.Generic.Dictionary<string, object>;
+
+            if (userDict != null && userDict.ContainsKey("userId"))
+            {
+                currentUserId = userDict["userId"]?.ToString();
+            }
+
+            if (string.IsNullOrWhiteSpace(currentUserId))
+            {
+                throw new System.Exception("Bạn chưa đăng nhập.");
+            }
+
+            var sharedPost = await _postService.SharePost(
+                currentUserId,
+                postId,
+                content,
+                visibility
+            );
+
+            return new
+            {
+                type = "SHARE_POST_SUCCESS",
+                data = sharedPost
+            };
+        }
     }
 }

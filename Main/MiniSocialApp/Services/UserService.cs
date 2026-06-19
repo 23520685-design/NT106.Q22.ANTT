@@ -1,4 +1,4 @@
-﻿using Google.Cloud.Firestore;
+using Google.Cloud.Firestore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,9 +10,20 @@ namespace MiniSocialApp.Services
     public class UserService
     {
         private readonly FirestoreDb _db;
+        private readonly PostService _postService;
+
+        // Constructor đầy đủ - dùng cho profile (cần fetch bài gốc)
+        public UserService(FirestoreContext context, PostService postService)
+        {
+            _db = context.Db;
+            _postService = postService;
+        }
+
+        // Constructor tối giản - chỉ dùng cho login (không cần fetch posts)
         public UserService(FirestoreContext context)
         {
             _db = context.Db;
+            _postService = null;
         }
     // Đăng nhập hoặc tạo mới user dựa trên số điện thoại
         public async Task<Dictionary<string, object>> LoginOrCreate(string userName, string phone)
@@ -180,9 +191,17 @@ namespace MiniSocialApp.Services
                     if (!data.ContainsKey("postId"))
                         data["postId"] = doc.Id;
 
+                    // Convert Timestamp → DateTime
+                    if (data.ContainsKey("createdAt") && data["createdAt"] is Timestamp ts)
+                        data["createdAt"] = ts.ToDateTime().ToUniversalTime();
+
                     return data;
                 })
                 .ToList();
+
+            // Fetch bài gốc cho các bài share
+            if (_postService != null)
+                await _postService.FetchOriginalPostsAsync(posts);
 
             int totalLikes = posts.Sum(p =>
                 p.ContainsKey("likeCount") ? Convert.ToInt32(p["likeCount"]) : 0
