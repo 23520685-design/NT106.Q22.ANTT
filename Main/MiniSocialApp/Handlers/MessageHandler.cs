@@ -8,17 +8,20 @@ public class MessageHandler
     private readonly LikeController _likeController;
     private readonly UserController _userController;
     private readonly CommentController _commentController;
+    private readonly NotificationController _notificationController;
 
     public MessageHandler(
     PostController postController,
     LikeController likeController,
     UserController userController,
-    CommentController commentController)
+    CommentController commentController,
+    NotificationController notificationController)
     {
         _postController = postController;
         _likeController = likeController;
         _userController = userController;
         _commentController = commentController;
+        _notificationController = notificationController;
     }
 
     public async Task<string> Handle(string json)
@@ -106,6 +109,21 @@ public class MessageHandler
                         await _userController.GetFollowing(msg.data)
                     );
 
+
+                case "GET_NOTIFICATIONS":
+                    return JsonConvert.SerializeObject(
+                        await _notificationController.GetNotifications()
+                    );
+
+                case "MARK_NOTIFICATION_READ":
+                    return JsonConvert.SerializeObject(
+                        await _notificationController.MarkNotificationRead(msg.data)
+                    );
+
+                case "MARK_ALL_NOTIFICATIONS_READ":
+                    return JsonConvert.SerializeObject(
+                        await _notificationController.MarkAllNotificationsRead()
+                    );
 
                 default:
                     return JsonConvert.SerializeObject(new

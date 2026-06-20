@@ -887,8 +887,171 @@ function bindCommentEvents() {
 }
 
 // ============================================================
+// NOTIFICATION MODULE
+// ============================================================
+
+let _notiOpen = false;
+let _notifications = [];
+
+// Icon theo loại thông báo
+function getNotiIconHTML(type) {
+  const map = {
+    like: { cls: "like", icon: "fa-heart" },
+    comment: { cls: "comment", icon: "fa-comment" },
+    follow: { cls: "follow", icon: "fa-user-plus" },
+    share: { cls: "share", icon: "fa-share-square" },
+    system: { cls: "system", icon: "fa-bell" },
+  };
+  const t = map[type] || map["system"];
+  return `<div class="noti-item-icon ${t.cls}"><i class="fas ${t.icon}"></i></div>`;
+}
+
+function buildNotiItemHTML(noti) {
+  const isUnread = noti.isRead === false || noti.isRead === 0;
+  const avatarHTML = noti.senderAvatar
+    ? `<img class="noti-item-avatar"
+            src="${escapeHTML(noti.senderAvatar)}"
+            alt="${escapeHTML(noti.senderName || "User")}"
+            onerror="this.src='https://i.pravatar.cc/100'" />`
+    : getNotiIconHTML(noti.type || "system");
+
+  const senderBold = noti.senderName
+    ? `<strong>${escapeHTML(noti.senderName)}</strong> `
+    : "";
+  const message = escapeHTML(noti.message || noti.content || "Thông báo mới");
+
+  return `
+    <div class="noti-item ${isUnread ? "unread" : ""}"
+         data-noti-id="${noti.notificationId || noti.id || ""}">
+      ${avatarHTML}
+      <div class="noti-item-body">
+        <div class="noti-item-text">${senderBold}${message}</div>
+        <div class="noti-item-time">
+          <i class="far fa-clock"></i>
+          ${formatTime(noti.createdAt)}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderNotifications(list) {
+  _notifications = list || [];
+  const notiListEl = document.getElementById("notiList");
+  if (!notiListEl) return;
+
+  if (!_notifications.length) {
+    notiListEl.innerHTML = `
+      <div class="noti-empty">
+        <i class="fas fa-bell-slash"></i>
+        <p>Không có thông báo mới</p>
+      </div>`;
+    updateNotiBadge(0);
+    return;
+  }
+
+  let html = "";
+  _notifications.forEach((n) => { html += buildNotiItemHTML(n); });
+  notiListEl.innerHTML = html;
+
+  // Count unread
+  const unread = _notifications.filter(
+    (n) => n.isRead === false || n.isRead === 0
+  ).length;
+  updateNotiBadge(unread);
+
+  // Click vào item → đánh dấu đã đọc
+  notiListEl.querySelectorAll(".noti-item").forEach((item) => {
+    item.addEventListener("click", function () {
+      const nid = this.dataset.notiId;
+      this.classList.remove("unread");
+      if (nid) {
+        sendToCSharp({ type: "MARK_NOTIFICATION_READ", data: { notificationId: nid } });
+      }
+      recalcUnread();
+    });
+  });
+}
+
+function recalcUnread() {
+  const unread = document.querySelectorAll(".noti-item.unread").length;
+  updateNotiBadge(unread);
+}
+
+function updateNotiBadge(count) {
+  const badge = document.getElementById("notiBadge");
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count > 99 ? "99+" : count;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+function openNotiDropdown() {
+  const dropdown = document.getElementById("notiDropdown");
+  const bell = document.getElementById("notiBell");
+  if (!dropdown || !bell) return;
+
+  _notiOpen = true;
+  dropdown.classList.remove("hidden");
+  bell.classList.add("active");
+
+  // Yêu cầu C# gửi danh sách thông báo
+  sendToCSharp({ type: "GET_NOTIFICATIONS" });
+}
+
+function closeNotiDropdown() {
+  const dropdown = document.getElementById("notiDropdown");
+  const bell = document.getElementById("notiBell");
+  if (!dropdown || !bell) return;
+
+  _notiOpen = false;
+  dropdown.classList.add("hidden");
+  bell.classList.remove("active");
+}
+
+function initNotificationUI() {
+  const bell = document.getElementById("notiBell");
+  const dropdown = document.getElementById("notiDropdown");
+  const markAll = document.getElementById("notiMarkAll");
+
+  if (bell) {
+    bell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (_notiOpen) closeNotiDropdown();
+      else openNotiDropdown();
+    });
+  }
+
+  if (markAll) {
+    markAll.addEventListener("click", (e) => {
+      e.stopPropagation();
+
+      document.querySelectorAll(".noti-item.unread").forEach((el) => {
+        el.classList.remove("unread");
+      });
+
+      updateNotiBadge(0);
+
+      sendToCSharp({
+        type: "MARK_ALL_NOTIFICATIONS_READ"
+      });
+    });
+  }
+
+  // Đóng dropdown khi click ngoài
+  document.addEventListener("click", (e) => {
+    if (_notiOpen && !e.target.closest("#notiWrap")) {
+      closeNotiDropdown();
+    }
+  });
+}
+
+// ============================================================
 // TOAST NOTIFICATION
 // ============================================================
+
 function showToast(message, duration) {
   if (duration == null) duration = 3000;
 
@@ -1224,6 +1387,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         showLoadingSkeleton();
         loadFeed();
+        sendToCSharp({ type: "GET_NOTIFICATIONS" });
         return;
       }
 
@@ -1442,6 +1606,55 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      // NOTIFICATION DATA (danh sách thông báo từ C#)
+      if (msg.type === "NOTIFICATIONS_DATA") {
+        const data = msg.data || {};
+        renderNotifications(data.notifications || []);
+        updateNotiBadge(data.unreadCount || 0);
+        return;
+      }
+
+      if (msg.type === "MARK_NOTIFICATION_READ_SUCCESS") {
+        sendToCSharp({ type: "GET_NOTIFICATIONS" });
+        return;
+      }
+
+      if (msg.type === "MARK_ALL_NOTIFICATIONS_READ_SUCCESS") {
+        sendToCSharp({ type: "GET_NOTIFICATIONS" });
+        return;
+      }
+
+      // NEW NOTIFICATION (thông báo đẩy realtime)
+      if (msg.type === "NEW_NOTIFICATION") {
+        const noti = msg.data;
+        if (noti) {
+          _notifications.unshift(noti);
+          const notiListEl = document.getElementById("notiList");
+          if (notiListEl) {
+            const emptyEl = notiListEl.querySelector(".noti-empty");
+            if (emptyEl) emptyEl.remove();
+            notiListEl.insertAdjacentHTML("afterbegin", buildNotiItemHTML(noti));
+            // bind click cho item mới
+            const firstItem = notiListEl.querySelector(".noti-item");
+            if (firstItem) {
+              firstItem.addEventListener("click", function () {
+                const nid = this.dataset.notiId;
+                this.classList.remove("unread");
+                if (nid) sendToCSharp({ type: "MARK_NOTIFICATION_READ", data: { notificationId: nid } });
+                recalcUnread();
+              });
+            }
+          }
+          // Tăng badge
+          const badge = document.getElementById("notiBadge");
+          const cur = badge && !badge.classList.contains("hidden")
+            ? (parseInt(badge.textContent) || 0)
+            : 0;
+          updateNotiBadge(cur + 1);
+        }
+        return;
+      }
+
       // LOGOUT SUCCESS
       if (msg.type === "LOGOUT_SUCCESS") {
         console.log("Đăng xuất thành công");
@@ -1470,6 +1683,9 @@ document.addEventListener("DOMContentLoaded", function () {
   if (homeMenu && homeMenu.parentElement) {
     homeMenu.parentElement.classList.add("active");
   }
+
+  // ---- Notification UI ----
+  initNotificationUI();
 
   showLoadingSkeleton();
   console.log("Social Mini App initialized!");

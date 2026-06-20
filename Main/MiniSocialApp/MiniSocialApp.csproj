@@ -182,6 +182,7 @@
     <Compile Include="Config\SupabaseConfig.cs" />
     <Compile Include="Controllers\CommentController.cs" />
     <Compile Include="Controllers\LikeController.cs" />
+    <Compile Include="Controllers\NotificationController.cs" />
     <Compile Include="Controllers\PostController.cs" />
     <Compile Include="Controllers\UserController.cs" />
     <Compile Include="Core\FirestoreContext.cs" />
@@ -205,6 +206,7 @@
     <Compile Include="SeedDataService.cs" />
     <Compile Include="Services\CommentService.cs" />
     <Compile Include="Services\LikeService.cs" />
+    <Compile Include="Services\NotificationService.cs" />
     <Compile Include="Services\PostService.cs" />
     <Compile Include="Services\StorageService.cs" />
     <Compile Include="Services\UserService.cs" />

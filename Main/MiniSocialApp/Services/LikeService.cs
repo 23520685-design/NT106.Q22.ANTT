@@ -1,4 +1,4 @@
-using Google.Cloud.Firestore;
+﻿using Google.Cloud.Firestore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,10 +10,12 @@ namespace MiniSocialApp.Services
     public class LikeService
     {
         private readonly FirestoreDb _db;
+        private readonly NotificationService _notificationService;
 
         public LikeService(FirestoreContext context)
         {
             _db = context.Db;
+            _notificationService = new NotificationService(context);
         }
 
         public async Task<object> ToggleLike(string postId)
@@ -61,9 +63,36 @@ namespace MiniSocialApp.Services
                 { "likeCount", FieldValue.Increment(1) }
             });
                     liked = true;
+
                 }
+
+
             });
 
+            if (liked)
+            {
+                var ownerSnap = await postRef.GetSnapshotAsync();
+
+                if (ownerSnap.Exists)
+                {
+                    var postData = ownerSnap.ToDictionary();
+
+                    string ownerId = postData.ContainsKey("userId")
+                        ? Convert.ToString(postData["userId"])
+                        : "";
+
+                    if (!string.IsNullOrWhiteSpace(ownerId))
+                    {
+                        await _notificationService.CreateNotification(
+                            ownerId,
+                            userId,
+                            "LIKE_POST",
+                            "đã thích bài viết của bạn",
+                            postId
+                        );
+                    }
+                }
+            }
             var postSnap = await postRef.GetSnapshotAsync();
             int likeCount = 0;
 

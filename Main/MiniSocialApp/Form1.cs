@@ -65,7 +65,16 @@ namespace MiniSocialApp
             var commentService = new CommentService(firestoreContext);
             var commentController = new CommentController(commentService);
 
-            _messageHandler = new MessageHandler(postController, likeController, userController, commentController);
+            var notificationService = new NotificationService(firestoreContext);
+            var notificationController = new NotificationController(notificationService);
+
+            _messageHandler = new MessageHandler(
+                postController,
+                likeController,
+                userController,
+                commentController,
+                notificationController
+            );
 
 
             var path = Path.Combine(Application.StartupPath, "UI", "Home", "home.html");

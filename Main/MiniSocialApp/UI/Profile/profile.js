@@ -64,6 +64,7 @@ document.addEventListener("DOMContentLoaded", function () {
   initProfileMenu();
   initEditProfileModal();
   initFollowButton();
+  initProfileNotificationUI();
 
   renderProfileUser(profileCurrentUser);
 });
@@ -634,9 +635,9 @@ function buildProfileSharedPostHTML(originalPost) {
       </div>
       <p>${profileEscapeHTML(originalPost.content || "")}</p>
       ${originalPost.mediaUrl
-        ? `<div class="shared-post-image"><img src="${profileEscapeHTML(originalPost.mediaUrl)}" alt="\u1ea2nh b\u00e0i vi\u1ebft g\u1ed1c" /></div>`
-        : ""
-      }
+      ? `<div class="shared-post-image"><img src="${profileEscapeHTML(originalPost.mediaUrl)}" alt="\u1ea2nh b\u00e0i vi\u1ebft g\u1ed1c" /></div>`
+      : ""
+    }
     </div>
   `;
 }
@@ -1182,6 +1183,7 @@ function initProfileWebViewMessages() {
       setImage("topUserAvatar", profileLoggedInUser.avatar || "");
 
       updateProfileActionButtons();
+      profileSendToCSharp({ type: "GET_NOTIFICATIONS" });
       return;
     }
 
@@ -1422,6 +1424,51 @@ function initProfileWebViewMessages() {
       var btn = document.getElementById("btnSendProfileComment");
       if (input) { input.value = ""; input.focus(); }
       if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane"></i> Gửi'; }
+      return;
+    }
+
+    if (msg.type === "NOTIFICATIONS_DATA") {
+      const data = msg.data || {};
+      renderProfileNotifications(data.notifications || []);
+      updateProfileNotiBadge(data.unreadCount || 0);
+      return;
+    }
+
+    if (msg.type === "MARK_NOTIFICATION_READ_SUCCESS") {
+      profileSendToCSharp({ type: "GET_NOTIFICATIONS" });
+      return;
+    }
+
+    if (msg.type === "MARK_ALL_NOTIFICATIONS_READ_SUCCESS") {
+      profileSendToCSharp({ type: "GET_NOTIFICATIONS" });
+      return;
+    }
+
+    if (msg.type === "NEW_NOTIFICATION") {
+      const noti = msg.data;
+      if (noti) {
+        _profileNotifications.unshift(noti);
+        const notiListEl = document.getElementById("profileNotiList");
+        if (notiListEl) {
+          const emptyEl = notiListEl.querySelector(".profile-noti-empty");
+          if (emptyEl) emptyEl.remove();
+          notiListEl.insertAdjacentHTML("afterbegin", buildProfileNotiItemHTML(noti));
+          const firstItem = notiListEl.querySelector(".profile-noti-item");
+          if (firstItem) {
+            firstItem.addEventListener("click", function () {
+              const nid = firstItem.dataset.notiId;
+              firstItem.classList.remove("unread");
+              if (nid) profileSendToCSharp({ type: "MARK_NOTIFICATION_READ", data: { notificationId: nid } });
+              recalcProfileUnread();
+            });
+          }
+        }
+        const badge = document.getElementById("profileNotiBadge");
+        const cur = badge && !badge.classList.contains("hidden")
+          ? (parseInt(badge.textContent) || 0)
+          : 0;
+        updateProfileNotiBadge(cur + 1);
+      }
       return;
     }
 
@@ -1680,6 +1727,157 @@ function saveProfileChanges() {
       bio: bio,
       avatar: avatar,
     },
+  });
+}
+
+// ============================================================
+// NOTIFICATION MODULE (PROFILE)
+// ============================================================
+
+let _profileNotiOpen = false;
+let _profileNotifications = [];
+
+function getProfileNotiIconHTML(type) {
+  const map = {
+    like: { cls: "like", icon: "fa-heart" },
+    comment: { cls: "comment", icon: "fa-comment" },
+    follow: { cls: "follow", icon: "fa-user-plus" },
+    share: { cls: "share", icon: "fa-share-square" },
+    system: { cls: "system", icon: "fa-bell" },
+  };
+  const t = map[type] || map["system"];
+  return `<div class="profile-noti-item-icon ${t.cls}"><i class="fas ${t.icon}"></i></div>`;
+}
+
+function buildProfileNotiItemHTML(noti) {
+  const isUnread = noti.isRead === false || noti.isRead === 0;
+  const avatarHTML = noti.senderAvatar
+    ? `<img class="profile-noti-item-avatar"
+            src="${profileEscapeHTML(noti.senderAvatar)}"
+            alt="${profileEscapeHTML(noti.senderName || "User")}"
+            onerror="this.src='https://i.pravatar.cc/100'" />`
+    : getProfileNotiIconHTML(noti.type || "system");
+
+  const senderBold = noti.senderName
+    ? `<strong>${profileEscapeHTML(noti.senderName)}</strong> `
+    : "";
+  const message = profileEscapeHTML(noti.message || noti.content || "Thông báo mới");
+
+  return `
+    <div class="profile-noti-item ${isUnread ? "unread" : ""}"
+         data-noti-id="${noti.notificationId || noti.id || ""}">
+      ${avatarHTML}
+      <div class="profile-noti-item-body">
+        <div class="profile-noti-item-text">${senderBold}${message}</div>
+        <div class="profile-noti-item-time">
+          <i class="far fa-clock"></i>
+          ${profileFormatTime(noti.createdAt)}
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderProfileNotifications(list) {
+  _profileNotifications = list || [];
+  const notiListEl = document.getElementById("profileNotiList");
+  if (!notiListEl) return;
+
+  if (!_profileNotifications.length) {
+    notiListEl.innerHTML = `
+      <div class="profile-noti-empty">
+        <i class="fas fa-bell-slash"></i>
+        <p>Không có thông báo mới</p>
+      </div>`;
+    updateProfileNotiBadge(0);
+    return;
+  }
+
+  let html = "";
+  _profileNotifications.forEach(function (n) { html += buildProfileNotiItemHTML(n); });
+  notiListEl.innerHTML = html;
+
+  const unread = _profileNotifications.filter(
+    function (n) { return n.isRead === false || n.isRead === 0; }
+  ).length;
+  updateProfileNotiBadge(unread);
+
+  notiListEl.querySelectorAll(".profile-noti-item").forEach(function (item) {
+    item.addEventListener("click", function () {
+      const nid = item.dataset.notiId;
+      item.classList.remove("unread");
+      if (nid) profileSendToCSharp({ type: "MARK_NOTIFICATION_READ", data: { notificationId: nid } });
+      recalcProfileUnread();
+    });
+  });
+}
+
+function recalcProfileUnread() {
+  const unread = document.querySelectorAll(".profile-noti-item.unread").length;
+  updateProfileNotiBadge(unread);
+}
+
+function updateProfileNotiBadge(count) {
+  const badge = document.getElementById("profileNotiBadge");
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count > 99 ? "99+" : count;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+function openProfileNotiDropdown() {
+  const dropdown = document.getElementById("profileNotiDropdown");
+  const bell = document.getElementById("profileNotiBell");
+  if (!dropdown || !bell) return;
+  _profileNotiOpen = true;
+  dropdown.classList.remove("hidden");
+  bell.classList.add("active");
+  profileSendToCSharp({ type: "GET_NOTIFICATIONS" });
+}
+
+function closeProfileNotiDropdown() {
+  const dropdown = document.getElementById("profileNotiDropdown");
+  const bell = document.getElementById("profileNotiBell");
+  if (!dropdown || !bell) return;
+  _profileNotiOpen = false;
+  dropdown.classList.add("hidden");
+  bell.classList.remove("active");
+}
+
+function initProfileNotificationUI() {
+  const bell = document.getElementById("profileNotiBell");
+  const markAll = document.getElementById("profileNotiMarkAll");
+
+  if (bell) {
+    bell.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (_profileNotiOpen) closeProfileNotiDropdown();
+      else openProfileNotiDropdown();
+    });
+  }
+
+  if (markAll) {
+    markAll.addEventListener("click", function (e) {
+      e.stopPropagation();
+
+      document.querySelectorAll(".profile-noti-item.unread").forEach(function (el) {
+        el.classList.remove("unread");
+      });
+
+      updateProfileNotiBadge(0);
+
+      profileSendToCSharp({
+        type: "MARK_ALL_NOTIFICATIONS_READ"
+      });
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (_profileNotiOpen && !e.target.closest("#profileNotiWrap")) {
+      closeProfileNotiDropdown();
+    }
   });
 }
 

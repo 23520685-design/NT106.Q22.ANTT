@@ -1,4 +1,4 @@
-using Google.Cloud.Firestore;
+﻿using Google.Cloud.Firestore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,10 +9,12 @@ namespace MiniSocialApp.Services
     public class CommentService
     {
         private readonly FirestoreDb _db;
+        private readonly NotificationService _notificationService;
 
         public CommentService(FirestoreContext context)
         {
             _db = context.Db;
+            _notificationService = new NotificationService(context);
         }
 
         public async Task<Dictionary<string, object>> CreateComment(string postId, string content)
@@ -61,6 +63,28 @@ namespace MiniSocialApp.Services
                     { "commentCount", FieldValue.Increment(1) }
                 });
             });
+
+            var postOwnerSnap = await postRef.GetSnapshotAsync();
+
+            if (postOwnerSnap.Exists)
+            {
+                var postData = postOwnerSnap.ToDictionary();
+
+                string ownerId = postData.ContainsKey("userId")
+                    ? Convert.ToString(postData["userId"])
+                    : "";
+
+                if (!string.IsNullOrWhiteSpace(ownerId))
+                {
+                    await _notificationService.CreateNotification(
+                        ownerId,
+                        userId,
+                        "COMMENT_POST",
+                        "đã bình luận về bài viết của bạn",
+                        postId
+                    );
+                }
+            }
 
             var updatedPost = await postRef.GetSnapshotAsync();
             int commentCount = 0;
