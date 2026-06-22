@@ -18,7 +18,9 @@ namespace MiniSocialApp
     {
         private MessageHandler _messageHandler;
         public bool IsRestarting { get; private set; } = false;
+        private object _pendingProfileData = null;
         private readonly SeedDataService seedDataService = new SeedDataService(new FirestoreContext());
+        private string _currentProfileUserId = null;
         public Form1()
         {
             InitializeComponent();
@@ -56,35 +58,116 @@ namespace MiniSocialApp
             // ✅ FIX 7: Inject LikeService vào LikeController – dùng chung firestoreContext
             var likeService = new LikeService(firestoreContext);
             var likeController = new LikeController(likeService);
-            _messageHandler = new MessageHandler(postController, likeController);
 
-            var path = Path.Combine(Application.StartupPath, "UI", "home.html");
+            var userService = new UserService(firestoreContext, postService);
+            var userController = new UserController(userService);
+
+            var commentService = new CommentService(firestoreContext);
+            var commentController = new CommentController(commentService);
+
+            var notificationService = new NotificationService(firestoreContext);
+            var notificationController = new NotificationController(notificationService);
+
+            _messageHandler = new MessageHandler(
+                postController,
+                likeController,
+                userController,
+                commentController,
+                notificationController
+            );
+
+
+            var path = Path.Combine(Application.StartupPath, "UI", "Home", "home.html");
             webView21.Source = new Uri(path);
 
             // Sau khi trang HTML load xong → gửi thông tin user xuống JS
-            webView21.CoreWebView2.NavigationCompleted += (s, args) =>
+            webView21.CoreWebView2.NavigationCompleted += async (s, args) =>
             {
+                string currentUrl = webView21.CoreWebView2.Source;
+
                 var userDict = CurrentUserStore.User as Dictionary<string, object>;
-                if (userDict == null) return;
 
-                string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
-                string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
-
-                var msg = new
+                if (userDict != null && currentUrl != null && currentUrl.Contains("home.html"))
                 {
-                    type = "USER_UPDATED",
-                    data = new { userName, avatar }
-                };
+                    string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
+                    string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
+                    string userId = userDict.ContainsKey("userId") ? userDict["userId"]?.ToString() : "";
+                    string bio = userDict.ContainsKey("bio") ? userDict["bio"]?.ToString() : "";
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(msg);
-                webView21.CoreWebView2.PostWebMessageAsJson(json);
+                    var userMsg = new
+                    {
+                        type = "USER_UPDATED",
+                        data = new { userId, userName, avatar, bio }
+                    };
 
-                // ✅ Bắt đầu tự động refresh feed mỗi 15 giây
-                StartFeedPolling();
+                    string userJson = Newtonsoft.Json.JsonConvert.SerializeObject(userMsg);
+                    webView21.CoreWebView2.PostWebMessageAsJson(userJson);
+                }
+
+                if (currentUrl != null && currentUrl.Contains("profile.html"))
+                {
+                    if (userDict != null)
+                    {
+                        string userName = userDict.ContainsKey("userName") ? userDict["userName"]?.ToString() : "User";
+                        string avatar = userDict.ContainsKey("avatar") ? userDict["avatar"]?.ToString() : "";
+                        string userId = userDict.ContainsKey("userId") ? userDict["userId"]?.ToString() : "";
+                        string bio = userDict.ContainsKey("bio") ? userDict["bio"]?.ToString() : "";
+
+                        var userMsg = new
+                        {
+                            type = "USER_UPDATED",
+                            data = new { userId, userName, avatar, bio }
+                        };
+
+                        string userJson = Newtonsoft.Json.JsonConvert.SerializeObject(userMsg);
+                        webView21.CoreWebView2.PostWebMessageAsJson(userJson);
+                    }
+
+                    if (_pendingProfileData != null)
+                    {
+                        var profileMsg = new
+                        {
+                            type = "PROFILE_DATA",
+                            data = _pendingProfileData
+                        };
+
+                        string profileJson = Newtonsoft.Json.JsonConvert.SerializeObject(profileMsg);
+                        webView21.CoreWebView2.PostWebMessageAsJson(profileJson);
+
+                        _pendingProfileData = null;
+                    }
+                    else if (!string.IsNullOrWhiteSpace(_currentProfileUserId))
+                    {
+                        string requestJson = Newtonsoft.Json.JsonConvert.SerializeObject(new
+                        {
+                            type = "GET_USER_PROFILE",
+                            data = new
+                            {
+                                userId = _currentProfileUserId
+                            }
+                        });
+
+                        string result = await _messageHandler.Handle(requestJson);
+
+                        if (result != null)
+                        {
+                            webView21.CoreWebView2.PostWebMessageAsJson(result);
+                        }
+                    }
+                }
+
+                if (currentUrl != null && currentUrl.Contains("home.html"))
+                {
+                    StartFeedPolling();
+                }
+                else
+                {
+                    StopFeedPolling();
+                }
             };
 
 
-        // nhận message từ JS
+            // nhận message từ JS
             webView21.CoreWebView2.WebMessageReceived += async (s, x) =>
             {
                 try
@@ -115,6 +198,46 @@ namespace MiniSocialApp
                         return;
                     }
 
+                    if (msg.type == "NAVIGATE_MY_PROFILE")
+                    {
+                        var userDict = CurrentUserStore.User as Dictionary<string, object>;
+
+                        if (userDict != null && userDict.ContainsKey("userId"))
+                        {
+                            _currentProfileUserId = userDict["userId"]?.ToString();
+                        }
+
+                        string profilePath = Path.Combine(Application.StartupPath, "UI", "Profile", "profile.html");
+                        webView21.CoreWebView2.Navigate(new Uri(profilePath).AbsoluteUri);
+                        return;
+                    }
+
+                    if (msg.type == "NAVIGATE_PROFILE")
+                    {
+                        try
+                        {
+                            if (msg.data != null && msg.data.userId != null)
+                            {
+                                _currentProfileUserId = msg.data.userId.ToString();
+                            }
+                        }
+                        catch
+                        {
+                            // Nếu không truyền userId thì giữ nguyên _currentProfileUserId hiện tại
+                        }
+
+                        string profilePath = Path.Combine(Application.StartupPath, "UI", "Profile", "profile.html");
+                        webView21.CoreWebView2.Navigate(new Uri(profilePath).AbsoluteUri);
+                        return;
+                    }
+
+                    if (msg.type == "NAVIGATE_HOME")
+                    {
+                        string homePath = Path.Combine(Application.StartupPath, "UI", "Home", "home.html");
+                        webView21.CoreWebView2.Navigate(new Uri(homePath).AbsoluteUri);
+                        return;
+                    }
+
                     // ✅ FIX 4: Dùng Application.Restart() thay vì tạo login form mới
                     // → tránh memory leak (form cũ bị Ẩn nhưng không Dispose)
                     if (msg.type == "LOGOUT")
@@ -133,6 +256,34 @@ namespace MiniSocialApp
 
                     if (result != null)
                     {
+                        dynamic responseObj = Newtonsoft.Json.JsonConvert.DeserializeObject(result);
+
+                        if (responseObj.type == "OPEN_PROFILE_PAGE")
+                        {
+                            _pendingProfileData = responseObj.data;
+
+                            try
+                            {
+                                _currentProfileUserId = responseObj.data.userId != null
+                                    ? (string)responseObj.data.userId
+                                    : null;
+                            }
+                            catch
+                            {
+                                _currentProfileUserId = null;
+                            }
+
+                            string profilePath = Path.Combine(
+                                Application.StartupPath,
+                                "UI",
+                                "Profile",
+                                "profile.html"
+                            );
+
+                            webView21.CoreWebView2.Navigate(new Uri(profilePath).AbsoluteUri);
+                            return;
+                        }
+
                         webView21.CoreWebView2.PostWebMessageAsJson(result);
                     }
                 }
@@ -164,6 +315,16 @@ namespace MiniSocialApp
                 catch { /* bỏ qua lỗi poll */ }
             };
             _feedTimer.Start();
+        }
+
+        private void StopFeedPolling()
+        {
+            if (_feedTimer != null)
+            {
+                _feedTimer.Stop();
+                _feedTimer.Dispose();
+                _feedTimer = null;
+            }
         }
 
         protected override void OnFormClosed(FormClosedEventArgs e)

@@ -6,11 +6,22 @@ public class MessageHandler
 {
     private readonly PostController _postController;
     private readonly LikeController _likeController;
+    private readonly UserController _userController;
+    private readonly CommentController _commentController;
+    private readonly NotificationController _notificationController;
 
-    public MessageHandler(PostController postController, LikeController likeController)
+    public MessageHandler(
+    PostController postController,
+    LikeController likeController,
+    UserController userController,
+    CommentController commentController,
+    NotificationController notificationController)
     {
         _postController = postController;
         _likeController = likeController;
+        _userController = userController;
+        _commentController = commentController;
+        _notificationController = notificationController;
     }
 
     public async Task<string> Handle(string json)
@@ -27,14 +38,91 @@ public class MessageHandler
                         await _postController.CreatePost(msg.data)
                     );
 
+                case "DELETE_POST":
+                    return JsonConvert.SerializeObject(
+                        await _postController.DeletePost(msg.data)
+                    );
+
+                case "SHARE_POST":
+                    return JsonConvert.SerializeObject(
+                        await _postController.SharePost(msg.data)
+                    );
+
                 case "GET_FEED":
                     return JsonConvert.SerializeObject(
                         await _postController.GetFeed()
                     );
 
+                case "GET_PROFILE_POSTS":
+                    return JsonConvert.SerializeObject(
+                        await _postController.GetUserPosts(msg.data)
+                    );
+
                 case "TOGGLE_LIKE":
                     return JsonConvert.SerializeObject(
                         await _likeController.ToggleLike(msg.data)
+                    );
+
+                case "SEARCH_USER":
+                    return JsonConvert.SerializeObject(
+                        await _userController.SearchUsers(msg.data)
+                    );
+
+
+                case "OPEN_USER_PROFILE":
+                    return JsonConvert.SerializeObject(
+                        await _userController.OpenUserProfile(msg.data)
+                    );
+
+                case "UPDATE_PROFILE":
+                    return JsonConvert.SerializeObject(
+                        await _userController.UpdateProfile(msg.data)
+                    );
+
+                case "GET_COMMENTS":
+                    return JsonConvert.SerializeObject(
+                        await _commentController.GetComments(msg.data)
+                    );
+
+                case "CREATE_COMMENT":
+                    return JsonConvert.SerializeObject(
+                        await _commentController.CreateComment(msg.data)
+                    );
+
+                case "GET_USER_PROFILE":
+                    return JsonConvert.SerializeObject(
+                        await _userController.GetUserProfile(msg.data)
+                    );
+
+                case "TOGGLE_FOLLOW":
+                    return JsonConvert.SerializeObject(
+                        await _userController.ToggleFollow(msg.data)
+                    );
+
+                case "GET_FOLLOWERS":
+                    return JsonConvert.SerializeObject(
+                        await _userController.GetFollowers(msg.data)
+                    );
+
+                case "GET_FOLLOWING":
+                    return JsonConvert.SerializeObject(
+                        await _userController.GetFollowing(msg.data)
+                    );
+
+
+                case "GET_NOTIFICATIONS":
+                    return JsonConvert.SerializeObject(
+                        await _notificationController.GetNotifications()
+                    );
+
+                case "MARK_NOTIFICATION_READ":
+                    return JsonConvert.SerializeObject(
+                        await _notificationController.MarkNotificationRead(msg.data)
+                    );
+
+                case "MARK_ALL_NOTIFICATIONS_READ":
+                    return JsonConvert.SerializeObject(
+                        await _notificationController.MarkAllNotificationsRead()
                     );
 
                 default:
@@ -43,6 +131,8 @@ public class MessageHandler
                         type = "ERROR",
                         message = $"Unknown message type: {type}"
                     });
+
+
             }
         }
         catch (System.Exception ex)
