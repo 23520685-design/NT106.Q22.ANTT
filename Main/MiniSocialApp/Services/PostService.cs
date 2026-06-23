@@ -1,4 +1,5 @@
 using Google.Cloud.Firestore;
+using MiniSocialApp.Offline;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,345 +11,904 @@ namespace MiniSocialApp.Services
     {
         private readonly FirestoreDb _db;
         private readonly StorageService _storageService;
+        private readonly LocalPostCacheService _postCache;
 
         public PostService(FirestoreContext context)
         {
             _db = context.Db;
             _storageService = new StorageService();
+
+            LocalDatabase localDatabase =
+                new LocalDatabase();
+
+            _postCache =
+                new LocalPostCacheService(localDatabase);
         }
 
-        public PostService(FirestoreContext context, StorageService storageService)
+        public PostService(
+            FirestoreContext context,
+            StorageService storageService)
         {
             _db = context.Db;
-            _storageService = storageService;
+
+            _storageService = storageService
+                ?? throw new ArgumentNullException(
+                    nameof(storageService));
+
+            LocalDatabase localDatabase =
+                new LocalDatabase();
+
+            _postCache =
+                new LocalPostCacheService(localDatabase);
         }
 
-        public async Task<string> CreatePost(string content, string imagePath, string visibility = "public")
+        // =====================================================
+        // CREATE POST
+        // =====================================================
+
+        public async Task<string> CreatePost(
+            string content,
+            string imagePath,
+            string visibility = "public")
         {
-            if (string.IsNullOrWhiteSpace(content) && string.IsNullOrWhiteSpace(imagePath))
-                throw new Exception("Bài viết phải có nội dung hoặc hình ảnh.");
+            if (string.IsNullOrWhiteSpace(content) &&
+                string.IsNullOrWhiteSpace(imagePath))
+            {
+                throw new Exception(
+                    "Bài viết phải có nội dung hoặc hình ảnh.");
+            }
 
-            var userDict = CurrentUserStore.User as Dictionary<string, object>;
+            var userDict =
+                CurrentUserStore.User
+                    as Dictionary<string, object>;
+
             if (userDict == null)
-                throw new Exception("Người dùng chưa đăng nhập.");
+            {
+                throw new Exception(
+                    "Người dùng chưa đăng nhập.");
+            }
 
-            string userId = userDict.ContainsKey("userId") ? Convert.ToString(userDict["userId"]) : null;
-            string userName = userDict.ContainsKey("userName") ? Convert.ToString(userDict["userName"]) : null;
-            string avatar = userDict.ContainsKey("avatar") ? Convert.ToString(userDict["avatar"]) : "";
+            string userId =
+                userDict.ContainsKey("userId")
+                    ? Convert.ToString(
+                        userDict["userId"])
+                    : null;
 
-            if (string.IsNullOrWhiteSpace(userId) || string.IsNullOrWhiteSpace(userName))
-                throw new Exception("Thông tin người dùng không hợp lệ.");
+            string userName =
+                userDict.ContainsKey("userName")
+                    ? Convert.ToString(
+                        userDict["userName"])
+                    : null;
 
-            if (visibility != "public" && visibility != "followers" && visibility != "private")
+            string avatar =
+                userDict.ContainsKey("avatar")
+                    ? Convert.ToString(
+                        userDict["avatar"])
+                    : "";
+
+            if (string.IsNullOrWhiteSpace(userId) ||
+                string.IsNullOrWhiteSpace(userName))
+            {
+                throw new Exception(
+                    "Thông tin người dùng không hợp lệ.");
+            }
+
+            if (visibility != "public" &&
+                visibility != "followers" &&
+                visibility != "private")
+            {
                 visibility = "public";
+            }
 
             string mediaUrl = null;
 
             if (!string.IsNullOrWhiteSpace(imagePath))
             {
-                mediaUrl = await _storageService.UploadImage(imagePath);
+                mediaUrl =
+                    await _storageService.UploadImage(
+                        imagePath);
             }
 
-            var post = new Dictionary<string, object>
-            {
-                { "content", content != null ? content.Trim() : "" },
-                { "mediaUrl", mediaUrl },
-                { "userId", userId },
-                { "userName", userName },
-                { "avatar", avatar },
-                { "visibility", visibility },
-                { "likeCount", 0 },
-                { "commentCount", 0 },
-                { "createdAt", Timestamp.GetCurrentTimestamp() }
-            };
+            var post =
+                new Dictionary<string, object>
+                {
+                    {
+                        "content",
+                        content != null
+                            ? content.Trim()
+                            : ""
+                    },
+                    {
+                        "mediaUrl",
+                        mediaUrl
+                    },
+                    {
+                        "userId",
+                        userId
+                    },
+                    {
+                        "userName",
+                        userName
+                    },
+                    {
+                        "avatar",
+                        avatar
+                    },
+                    {
+                        "visibility",
+                        visibility
+                    },
+                    {
+                        "likeCount",
+                        0
+                    },
+                    {
+                        "commentCount",
+                        0
+                    },
+                    {
+                        "createdAt",
+                        Timestamp.GetCurrentTimestamp()
+                    }
+                };
 
-            DocumentReference docRef = await _db.Collection("posts").AddAsync(post);
+            DocumentReference docRef =
+                await _db
+                    .Collection("posts")
+                    .AddAsync(post);
+
             return docRef.Id;
         }
 
-        public async Task<List<Dictionary<string, object>>> GetFeed()
+        // =====================================================
+        // GET FEED
+        // =====================================================
+
+        public async Task<
+            List<Dictionary<string, object>>>
+            GetFeed()
         {
-            var snapshot = await _db.Collection("posts")
-                .WhereEqualTo("visibility", "public")
-                .OrderByDescending("createdAt")
-                .Limit(50)
-                .GetSnapshotAsync();
+            string currentUserId =
+                GetCurrentUserId();
 
-            var userDict = CurrentUserStore.User as Dictionary<string, object>;
-            string currentUserId = userDict != null && userDict.ContainsKey("userId")
-                ? userDict["userId"]?.ToString()
-                : "";
-
-            var allPosts = snapshot.Documents
-                .Select(doc =>
-                {
-                    var data = doc.ToDictionary();
-                    data["postId"] = doc.Id;
-
-                    if (data.ContainsKey("createdAt") && data["createdAt"] is Timestamp ts)
-                    {
-                        data["createdAt"] = ts.ToDateTime().ToUniversalTime();
-                    }
-
-                    return data;
-                })
-                .ToList();
-
-            // Ưu tiên bài mới nhất
-            var newest = allPosts.Take(5).ToList();
-
-            // Các bài còn lại random theo từng user
-            int seed = !string.IsNullOrEmpty(currentUserId)
-                ? currentUserId.GetHashCode()
-                : Environment.TickCount;
-
-            Random rng = new Random(seed);
-
-            var randomizedOlderPosts = allPosts
-                .Skip(5)
-                .OrderBy(x => rng.Next())
-                .Take(15)
-                .ToList();
-
-            var posts = newest.Concat(randomizedOlderPosts).ToList();
-
-            // Fetch bài gốc cho các bài share
-            await FetchOriginalPostsAsync(posts);
-
-            if (!string.IsNullOrEmpty(currentUserId))
+            try
             {
-                var likeTasks = posts.Select(async post =>
-                {
-                    string postId = post["postId"]?.ToString();
-                    var likeSnap = await _db.Collection("posts")
-                        .Document(postId)
-                        .Collection("likes")
-                        .Document(currentUserId)
-                        .GetSnapshotAsync();
+                List<Dictionary<string, object>>
+                    remotePosts =
+                        await GetFeedFromRemote();
 
-                    post["isLiked"] = likeSnap.Exists;
-                    return post;
-                });
+                MarkPostsAsRemote(remotePosts);
 
-                return (await Task.WhenAll(likeTasks)).ToList();
+                TrySaveFeedToCache(
+                    currentUserId,
+                    remotePosts);
+
+                return remotePosts;
             }
-
-            foreach (var post in posts)
-                post["isLiked"] = false;
-
-            return posts;
-        }
-
-        // Lấy tất cả bài viết của một user cụ thể
-        public async Task<List<Dictionary<string, object>>> GetUserPosts(string userId)
-        {
-            if (string.IsNullOrWhiteSpace(userId))
-                return new List<Dictionary<string, object>>();
-
-            var snapshot = await _db.Collection("posts")
-                .WhereEqualTo("userId", userId)
-                .OrderByDescending("createdAt")
-                .Limit(50)
-                .GetSnapshotAsync();
-
-            var currentUserDict = CurrentUserStore.User as Dictionary<string, object>;
-            string currentUserId = currentUserDict != null && currentUserDict.ContainsKey("userId")
-                ? currentUserDict["userId"]?.ToString()
-                : "";
-
-            var posts = snapshot.Documents.Select(doc =>
+            catch (Exception remoteException)
             {
-                var data = doc.ToDictionary();
-                data["postId"] = doc.Id;
+                System.Diagnostics.Debug.WriteLine(
+                    "Không thể tải feed từ Firestore: " +
+                    remoteException.Message);
 
-                if (data.ContainsKey("createdAt") && data["createdAt"] is Timestamp ts)
+                List<Dictionary<string, object>>
+                    cachedPosts =
+                        TryGetCachedFeed(
+                            currentUserId);
+
+                if (cachedPosts.Count > 0)
                 {
-                    data["createdAt"] = ts.ToDateTime().ToUniversalTime();
+                    return cachedPosts;
                 }
 
-                return data;
-            }).ToList();
-
-            // Fetch bài gốc cho các bài share
-            await FetchOriginalPostsAsync(posts);
-
-            // Kiểm tra isLiked cho current user
-            if (!string.IsNullOrEmpty(currentUserId))
-            {
-                var likeTasks = posts.Select(async post =>
-                {
-                    string postId = post["postId"]?.ToString();
-                    var likeSnap = await _db.Collection("posts")
-                        .Document(postId)
-                        .Collection("likes")
-                        .Document(currentUserId)
-                        .GetSnapshotAsync();
-
-                    post["isLiked"] = likeSnap.Exists;
-                    return post;
-                });
-
-                return (await Task.WhenAll(likeTasks)).ToList();
+                throw new Exception(
+                    "Không thể tải bảng tin và chưa có dữ liệu ngoại tuyến.",
+                    remoteException);
             }
-
-            foreach (var post in posts)
-                post["isLiked"] = false;
-
-            return posts;
         }
 
-        public async Task DeletePost(string postId)
+        private async Task<
+            List<Dictionary<string, object>>>
+            GetFeedFromRemote()
         {
-            if (string.IsNullOrWhiteSpace(postId))
-                throw new Exception("PostId không hợp lệ.");
+            QuerySnapshot snapshot =
+                await _db
+                    .Collection("posts")
+                    .WhereEqualTo(
+                        "visibility",
+                        "public")
+                    .OrderByDescending(
+                        "createdAt")
+                    .Limit(50)
+                    .GetSnapshotAsync();
 
-            var userDict = CurrentUserStore.User as Dictionary<string, object>;
+            var userDict =
+                CurrentUserStore.User
+                    as Dictionary<string, object>;
 
-            if (userDict == null)
-                throw new Exception("Người dùng chưa đăng nhập.");
+            string currentUserId =
+                userDict != null &&
+                userDict.ContainsKey("userId")
+                    ? userDict["userId"]
+                        ?.ToString()
+                    : "";
 
-            string currentUserId = userDict.ContainsKey("userId")
-                ? Convert.ToString(userDict["userId"])
-                : "";
-
-            if (string.IsNullOrWhiteSpace(currentUserId))
-                throw new Exception("UserId hiện tại không hợp lệ.");
-
-            var postRef = _db.Collection("posts").Document(postId);
-            var postSnap = await postRef.GetSnapshotAsync();
-
-            if (!postSnap.Exists)
-                throw new Exception("Bài viết không tồn tại.");
-
-            var postData = postSnap.ToDictionary();
-
-            string ownerId = postData.ContainsKey("userId")
-                ? Convert.ToString(postData["userId"])
-                : "";
-
-            if (ownerId != currentUserId)
-                throw new Exception("Bạn không có quyền xóa bài viết này.");
-
-            await postRef.DeleteAsync();
-        }
-
-        // Fetch bài gốc cho tất cả bài share trong danh sách
-        public async Task FetchOriginalPostsAsync(List<Dictionary<string, object>> posts)
-        {
-            var sharePosts = posts
-                .Where(p => p.ContainsKey("postType") && p["postType"]?.ToString() == "share"
-                         && p.ContainsKey("sharedPostId") && !string.IsNullOrWhiteSpace(p["sharedPostId"]?.ToString()))
-                .ToList();
-
-            if (sharePosts.Count == 0) return;
-
-            var fetchTasks = sharePosts.Select(async post =>
-            {
-                string sharedPostId = post["sharedPostId"]?.ToString();
-                try
-                {
-                    var origDoc = await _db.Collection("posts").Document(sharedPostId).GetSnapshotAsync();
-                    if (origDoc.Exists)
+            var allPosts =
+                snapshot.Documents
+                    .Select(doc =>
                     {
-                        var origData = origDoc.ToDictionary();
-                        origData["postId"] = origDoc.Id;
+                        Dictionary<string, object>
+                            data =
+                                doc.ToDictionary();
 
-                        if (origData.ContainsKey("createdAt") && origData["createdAt"] is Timestamp origTs)
+                        data["postId"] =
+                            doc.Id;
+
+                        if (data.ContainsKey(
+                                "createdAt") &&
+                            data["createdAt"]
+                                is Timestamp timestamp)
                         {
-                            origData["createdAt"] = origTs.ToDateTime().ToUniversalTime();
+                            data["createdAt"] =
+                                timestamp
+                                    .ToDateTime()
+                                    .ToUniversalTime();
                         }
 
-                        post["originalPost"] = origData;
-                    }
-                }
-                catch
-                {
-                    // Bài gốc không tồn tại hoặc bị lỗi → bỏ qua
-                }
-            });
+                        return data;
+                    })
+                    .ToList();
+
+            // Ưu tiên 5 bài mới nhất.
+            List<Dictionary<string, object>>
+                newest =
+                    allPosts
+                        .Take(5)
+                        .ToList();
+
+            // Các bài cũ được random ổn định theo user.
+            int seed =
+                !string.IsNullOrEmpty(
+                    currentUserId)
+                    ? currentUserId
+                        .GetHashCode()
+                    : Environment.TickCount;
+
+            Random random =
+                new Random(seed);
+
+            List<Dictionary<string, object>>
+                randomizedOlderPosts =
+                    allPosts
+                        .Skip(5)
+                        .OrderBy(
+                            post =>
+                                random.Next())
+                        .Take(15)
+                        .ToList();
+
+            List<Dictionary<string, object>>
+                posts =
+                    newest
+                        .Concat(
+                            randomizedOlderPosts)
+                        .ToList();
+
+            // Lấy bài gốc cho các bài share.
+            await FetchOriginalPostsAsync(
+                posts);
+
+            // Lấy trạng thái like của user hiện tại.
+            if (!string.IsNullOrEmpty(
+                    currentUserId))
+            {
+                IEnumerable<
+                    Task<Dictionary<string, object>>>
+                    likeTasks =
+                        posts.Select(
+                            async post =>
+                            {
+                                string postId =
+                                    post["postId"]
+                                        ?.ToString();
+
+                                DocumentSnapshot likeSnapshot =
+                                    await _db
+                                        .Collection("posts")
+                                        .Document(postId)
+                                        .Collection("likes")
+                                        .Document(
+                                            currentUserId)
+                                        .GetSnapshotAsync();
+
+                                post["isLiked"] =
+                                    likeSnapshot.Exists;
+
+                                return post;
+                            });
+
+                return (
+                    await Task.WhenAll(
+                        likeTasks)
+                ).ToList();
+            }
+
+            foreach (
+                Dictionary<string, object>
+                post in posts)
+            {
+                post["isLiked"] = false;
+            }
+
+            return posts;
+        }
+
+        // =====================================================
+        // GET USER POSTS
+        // =====================================================
+
+        public async Task<
+            List<Dictionary<string, object>>>
+            GetUserPosts(string userId)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    userId))
+            {
+                return new List<
+                    Dictionary<string, object>>();
+            }
+
+            QuerySnapshot snapshot =
+                await _db
+                    .Collection("posts")
+                    .WhereEqualTo(
+                        "userId",
+                        userId)
+                    .OrderByDescending(
+                        "createdAt")
+                    .Limit(50)
+                    .GetSnapshotAsync();
+
+            var currentUserDictionary =
+                CurrentUserStore.User
+                    as Dictionary<string, object>;
+
+            string currentUserId =
+                currentUserDictionary != null &&
+                currentUserDictionary.ContainsKey(
+                    "userId")
+                    ? currentUserDictionary["userId"]
+                        ?.ToString()
+                    : "";
+
+            List<Dictionary<string, object>>
+                posts =
+                    snapshot.Documents
+                        .Select(doc =>
+                        {
+                            Dictionary<string, object>
+                                data =
+                                    doc.ToDictionary();
+
+                            data["postId"] =
+                                doc.Id;
+
+                            if (data.ContainsKey(
+                                    "createdAt") &&
+                                data["createdAt"]
+                                    is Timestamp timestamp)
+                            {
+                                data["createdAt"] =
+                                    timestamp
+                                        .ToDateTime()
+                                        .ToUniversalTime();
+                            }
+
+                            return data;
+                        })
+                        .ToList();
+
+            await FetchOriginalPostsAsync(
+                posts);
+
+            if (!string.IsNullOrEmpty(
+                    currentUserId))
+            {
+                IEnumerable<
+                    Task<Dictionary<string, object>>>
+                    likeTasks =
+                        posts.Select(
+                            async post =>
+                            {
+                                string postId =
+                                    post["postId"]
+                                        ?.ToString();
+
+                                DocumentSnapshot likeSnapshot =
+                                    await _db
+                                        .Collection("posts")
+                                        .Document(postId)
+                                        .Collection("likes")
+                                        .Document(
+                                            currentUserId)
+                                        .GetSnapshotAsync();
+
+                                post["isLiked"] =
+                                    likeSnapshot.Exists;
+
+                                return post;
+                            });
+
+                return (
+                    await Task.WhenAll(
+                        likeTasks)
+                ).ToList();
+            }
+
+            foreach (
+                Dictionary<string, object>
+                post in posts)
+            {
+                post["isLiked"] = false;
+            }
+
+            return posts;
+        }
+
+        // =====================================================
+        // DELETE POST
+        // =====================================================
+
+        public async Task DeletePost(
+            string postId)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    postId))
+            {
+                throw new Exception(
+                    "PostId không hợp lệ.");
+            }
+
+            var userDict =
+                CurrentUserStore.User
+                    as Dictionary<string, object>;
+
+            if (userDict == null)
+            {
+                throw new Exception(
+                    "Người dùng chưa đăng nhập.");
+            }
+
+            string currentUserId =
+                userDict.ContainsKey("userId")
+                    ? Convert.ToString(
+                        userDict["userId"])
+                    : "";
+
+            if (string.IsNullOrWhiteSpace(
+                    currentUserId))
+            {
+                throw new Exception(
+                    "UserId hiện tại không hợp lệ.");
+            }
+
+            DocumentReference postReference =
+                _db
+                    .Collection("posts")
+                    .Document(postId);
+
+            DocumentSnapshot postSnapshot =
+                await postReference
+                    .GetSnapshotAsync();
+
+            if (!postSnapshot.Exists)
+            {
+                throw new Exception(
+                    "Bài viết không tồn tại.");
+            }
+
+            Dictionary<string, object>
+                postData =
+                    postSnapshot
+                        .ToDictionary();
+
+            string ownerId =
+                postData.ContainsKey("userId")
+                    ? Convert.ToString(
+                        postData["userId"])
+                    : "";
+
+            if (ownerId != currentUserId)
+            {
+                throw new Exception(
+                    "Bạn không có quyền xóa bài viết này.");
+            }
+
+            await postReference.DeleteAsync();
+        }
+
+        // =====================================================
+        // FETCH ORIGINAL SHARED POSTS
+        // =====================================================
+
+        public async Task FetchOriginalPostsAsync(
+            List<Dictionary<string, object>> posts)
+        {
+            List<Dictionary<string, object>>
+                sharePosts =
+                    posts
+                        .Where(post =>
+                            post.ContainsKey(
+                                "postType") &&
+                            post["postType"]
+                                ?.ToString() ==
+                                "share" &&
+                            post.ContainsKey(
+                                "sharedPostId") &&
+                            !string.IsNullOrWhiteSpace(
+                                post["sharedPostId"]
+                                    ?.ToString()))
+                        .ToList();
+
+            if (sharePosts.Count == 0)
+            {
+                return;
+            }
+
+            IEnumerable<Task> fetchTasks =
+                sharePosts.Select(
+                    async post =>
+                    {
+                        string sharedPostId =
+                            post["sharedPostId"]
+                                ?.ToString();
+
+                        try
+                        {
+                            DocumentSnapshot originalDocument =
+                                await _db
+                                    .Collection("posts")
+                                    .Document(
+                                        sharedPostId)
+                                    .GetSnapshotAsync();
+
+                            if (!originalDocument.Exists)
+                            {
+                                return;
+                            }
+
+                            Dictionary<string, object>
+                                originalData =
+                                    originalDocument
+                                        .ToDictionary();
+
+                            originalData["postId"] =
+                                originalDocument.Id;
+
+                            if (originalData.ContainsKey(
+                                    "createdAt") &&
+                                originalData["createdAt"]
+                                    is Timestamp timestamp)
+                            {
+                                originalData["createdAt"] =
+                                    timestamp
+                                        .ToDateTime()
+                                        .ToUniversalTime();
+                            }
+
+                            post["originalPost"] =
+                                originalData;
+                        }
+                        catch (Exception exception)
+                        {
+                            System.Diagnostics.Debug.WriteLine(
+                                "Không thể tải bài viết gốc: " +
+                                exception.Message);
+                        }
+                    });
 
             await Task.WhenAll(fetchTasks);
         }
 
-        private async Task<HashSet<string>> GetFollowingIds(string userId)
+        // =====================================================
+        // FOLLOWING IDS
+        // =====================================================
+
+        private async Task<HashSet<string>>
+            GetFollowingIds(string userId)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                return new HashSet<string>();
-
-            var snapshot = await _db.Collection("follows")
-                .WhereEqualTo("followerId", userId)
-                .GetSnapshotAsync();
-
-            return new HashSet<string>(
-                snapshot.Documents.Select(d => d.GetValue<string>("followingId"))
-            );
-        }
-
-        // Chia sẻ bài viết
-        // Chia sẻ bài viết
-        public async Task<Dictionary<string, object>> SharePost(
-            string currentUserId,
-            string originalPostId,
-            string content,
-            string visibility = "public")
-        {
-            if (string.IsNullOrWhiteSpace(currentUserId))
-                throw new Exception("Bạn chưa đăng nhập.");
-
-            if (string.IsNullOrWhiteSpace(originalPostId))
-                throw new Exception("Không tìm thấy bài viết cần chia sẻ.");
-
-            if (visibility != "public" && visibility != "followers" && visibility != "private")
-                visibility = "public";
-
-            var originalPostRef = _db.Collection("posts").Document(originalPostId);
-            var originalPostDoc = await originalPostRef.GetSnapshotAsync();
-
-            if (!originalPostDoc.Exists)
-                throw new Exception("Bài viết gốc không tồn tại hoặc đã bị xóa.");
-
-            var originalPost = originalPostDoc.ToDictionary();
-            originalPost["postId"] = originalPostDoc.Id;
-
-            if (originalPost.ContainsKey("createdAt") && originalPost["createdAt"] is Timestamp originalTs)
+            if (string.IsNullOrWhiteSpace(
+                    userId))
             {
-                originalPost["createdAt"] = originalTs.ToDateTime().ToUniversalTime();
+                return new HashSet<string>();
             }
 
-            var userDict = CurrentUserStore.User as Dictionary<string, object>;
+            QuerySnapshot snapshot =
+                await _db
+                    .Collection("follows")
+                    .WhereEqualTo(
+                        "followerId",
+                        userId)
+                    .GetSnapshotAsync();
+
+            return new HashSet<string>(
+                snapshot.Documents
+                    .Select(document =>
+                        document.GetValue<string>(
+                            "followingId")));
+        }
+
+        // =====================================================
+        // SHARE POST
+        // =====================================================
+
+        public async Task<
+            Dictionary<string, object>>
+            SharePost(
+                string currentUserId,
+                string originalPostId,
+                string content,
+                string visibility = "public")
+        {
+            if (string.IsNullOrWhiteSpace(
+                    currentUserId))
+            {
+                throw new Exception(
+                    "Bạn chưa đăng nhập.");
+            }
+
+            if (string.IsNullOrWhiteSpace(
+                    originalPostId))
+            {
+                throw new Exception(
+                    "Không tìm thấy bài viết cần chia sẻ.");
+            }
+
+            if (visibility != "public" &&
+                visibility != "followers" &&
+                visibility != "private")
+            {
+                visibility = "public";
+            }
+
+            DocumentReference originalPostReference =
+                _db
+                    .Collection("posts")
+                    .Document(originalPostId);
+
+            DocumentSnapshot originalPostDocument =
+                await originalPostReference
+                    .GetSnapshotAsync();
+
+            if (!originalPostDocument.Exists)
+            {
+                throw new Exception(
+                    "Bài viết gốc không tồn tại hoặc đã bị xóa.");
+            }
+
+            Dictionary<string, object>
+                originalPost =
+                    originalPostDocument
+                        .ToDictionary();
+
+            originalPost["postId"] =
+                originalPostDocument.Id;
+
+            if (originalPost.ContainsKey(
+                    "createdAt") &&
+                originalPost["createdAt"]
+                    is Timestamp originalTimestamp)
+            {
+                originalPost["createdAt"] =
+                    originalTimestamp
+                        .ToDateTime()
+                        .ToUniversalTime();
+            }
+
+            var userDict =
+                CurrentUserStore.User
+                    as Dictionary<string, object>;
 
             if (userDict == null)
-                throw new Exception("Người dùng chưa đăng nhập.");
+            {
+                throw new Exception(
+                    "Người dùng chưa đăng nhập.");
+            }
 
-            string userName = userDict.ContainsKey("userName")
-                ? Convert.ToString(userDict["userName"])
-                : "Người dùng";
+            string userName =
+                userDict.ContainsKey("userName")
+                    ? Convert.ToString(
+                        userDict["userName"])
+                    : "Người dùng";
 
-            string avatar = userDict.ContainsKey("avatar")
-                ? Convert.ToString(userDict["avatar"])
-                : "";
+            string avatar =
+                userDict.ContainsKey("avatar")
+                    ? Convert.ToString(
+                        userDict["avatar"])
+                    : "";
 
-            var sharePost = new Dictionary<string, object>
-    {
-        { "content", content != null ? content.Trim() : "" },
-        { "mediaUrl", null },
-        { "userId", currentUserId },
-        { "userName", userName },
-        { "avatar", avatar },
-        { "visibility", visibility },
-        { "postType", "share" },
-        { "sharedPostId", originalPostId },
-        { "likeCount", 0 },
-        { "commentCount", 0 },
-        { "createdAt", Timestamp.GetCurrentTimestamp() }
-    };
+            var sharePost =
+                new Dictionary<string, object>
+                {
+                    {
+                        "content",
+                        content != null
+                            ? content.Trim()
+                            : ""
+                    },
+                    {
+                        "mediaUrl",
+                        null
+                    },
+                    {
+                        "userId",
+                        currentUserId
+                    },
+                    {
+                        "userName",
+                        userName
+                    },
+                    {
+                        "avatar",
+                        avatar
+                    },
+                    {
+                        "visibility",
+                        visibility
+                    },
+                    {
+                        "postType",
+                        "share"
+                    },
+                    {
+                        "sharedPostId",
+                        originalPostId
+                    },
+                    {
+                        "likeCount",
+                        0
+                    },
+                    {
+                        "commentCount",
+                        0
+                    },
+                    {
+                        "createdAt",
+                        Timestamp.GetCurrentTimestamp()
+                    }
+                };
 
-            DocumentReference docRef = await _db.Collection("posts").AddAsync(sharePost);
+            DocumentReference documentReference =
+                await _db
+                    .Collection("posts")
+                    .AddAsync(sharePost);
 
-            sharePost["postId"] = docRef.Id;
-            sharePost["originalPost"] = originalPost;
+            sharePost["postId"] =
+                documentReference.Id;
+
+            sharePost["originalPost"] =
+                originalPost;
 
             return sharePost;
+        }
+
+        // =====================================================
+        // OFFLINE HELPERS
+        // =====================================================
+
+        private string GetCurrentUserId()
+        {
+            var currentUser =
+                CurrentUserStore.User
+                    as Dictionary<string, object>;
+
+            if (currentUser == null)
+            {
+                throw new InvalidOperationException(
+                    "Người dùng chưa đăng nhập.");
+            }
+
+            if (!currentUser.ContainsKey(
+                    "userId") ||
+                currentUser["userId"] == null)
+            {
+                throw new InvalidOperationException(
+                    "Người dùng hiện tại không có userId.");
+            }
+
+            string userId =
+                Convert.ToString(
+                    currentUser["userId"]);
+
+            if (string.IsNullOrWhiteSpace(
+                    userId))
+            {
+                throw new InvalidOperationException(
+                    "UserId hiện tại không hợp lệ.");
+            }
+
+            return userId;
+        }
+
+        private void MarkPostsAsRemote(
+            List<Dictionary<string, object>> posts)
+        {
+            if (posts == null)
+            {
+                return;
+            }
+
+            foreach (
+                Dictionary<string, object>
+                post in posts)
+            {
+                if (post == null)
+                {
+                    continue;
+                }
+
+                post["dataSource"] =
+                    "remote";
+
+                post["isOfflineData"] =
+                    false;
+            }
+        }
+
+        private void TrySaveFeedToCache(
+            string currentUserId,
+            List<Dictionary<string, object>> posts)
+        {
+            try
+            {
+                _postCache.ReplaceFeed(
+                    currentUserId,
+                    posts);
+
+                int cachedCount =
+                    _postCache
+                        .GetCachedPostCount(
+                            currentUserId);
+
+                System.Diagnostics.Debug.WriteLine(
+                    "Số bài đã lưu cache: " +
+                    cachedCount);
+            }
+            catch (Exception cacheException)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "Không thể lưu feed vào SQLite: " +
+                    cacheException.Message);
+            }
+        }
+
+        private List<Dictionary<string, object>>
+            TryGetCachedFeed(
+                string currentUserId)
+        {
+            try
+            {
+                List<Dictionary<string, object>>
+                    cachedPosts =
+                        _postCache
+                            .GetCachedFeed(
+                                currentUserId);
+
+                System.Diagnostics.Debug.WriteLine(
+                    "Số bài đọc từ cache: " +
+                    cachedPosts.Count);
+
+                return cachedPosts;
+            }
+            catch (Exception cacheException)
+            {
+                System.Diagnostics.Debug.WriteLine(
+                    "Không thể đọc feed từ SQLite: " +
+                    cacheException.Message);
+
+                return new List<
+                    Dictionary<string, object>>();
+            }
         }
     }
 }
