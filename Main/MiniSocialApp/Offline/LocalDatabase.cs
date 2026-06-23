@@ -1,12 +1,122 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Data.Sqlite;
+using System;
+using System.IO;
 
 namespace MiniSocialApp.Offline
 {
     internal class LocalDatabase
     {
+        private readonly string _databaseDirectory;
+        private readonly string _databasePath;
+        private readonly string _connectionString;
+
+        public LocalDatabase()
+        {
+            // 1. Xác định thư mục lưu database local.
+            _databaseDirectory = Path.Combine(
+                Environment.GetFolderPath(
+                    Environment.SpecialFolder.LocalApplicationData),
+                "MiniSocialApp");
+
+            // 2. Xác định đường dẫn đầy đủ của file database.
+            _databasePath = Path.Combine(
+                _databaseDirectory,
+                "mini_social_local.db");
+
+            // 3. Tạo connection string dành cho Microsoft.Data.Sqlite.
+            _connectionString =
+                $"Data Source={_databasePath}";
+
+            // 4. Khởi tạo thư mục, file database và các bảng.
+            InitializeDatabase();
+        }
+
+        public SqliteConnection CreateConnection()
+        {
+            return new SqliteConnection(_connectionString);
+        }
+
+        public string GetDatabasePath()
+        {
+            return _databasePath;
+        }
+
+        private void InitializeDatabase()
+        {
+            // Phải tạo thư mục trước khi mở database.
+            CreateDatabaseDirectory();
+
+            // Khi connection.Open() được gọi,
+            // Microsoft.Data.Sqlite tự tạo file nếu chưa tồn tại.
+            CreateTables();
+        }
+
+        private void CreateDatabaseDirectory()
+        {
+            if (!Directory.Exists(_databaseDirectory))
+            {
+                Directory.CreateDirectory(_databaseDirectory);
+            }
+        }
+
+        private void CreateTables()
+        {
+            using (SqliteConnection connection = CreateConnection())
+            {
+                connection.Open();
+
+                CreateCachedPostsTable(connection);
+                CreateCachedPostsIndex(connection);
+            }
+        }
+
+        private void CreateCachedPostsTable(
+            SqliteConnection connection)
+        {
+            const string sql = @"
+                CREATE TABLE IF NOT EXISTS cached_posts
+                (
+                    owner_user_id TEXT NOT NULL,
+                    post_id TEXT NOT NULL,
+                    post_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    cached_at TEXT NOT NULL,
+
+                    PRIMARY KEY
+                    (
+                        owner_user_id,
+                        post_id
+                    )
+                );
+            ";
+
+            using (SqliteCommand command =
+                   connection.CreateCommand())
+            {
+                command.CommandText = sql;
+                command.ExecuteNonQuery();
+            }
+        }
+
+        private void CreateCachedPostsIndex(
+            SqliteConnection connection)
+        {
+            const string sql = @"
+                CREATE INDEX IF NOT EXISTS
+                idx_cached_posts_owner_created
+                ON cached_posts
+                (
+                    owner_user_id,
+                    created_at DESC
+                );
+            ";
+
+            using (SqliteCommand command =
+                   connection.CreateCommand())
+            {
+                command.CommandText = sql;
+                command.ExecuteNonQuery();
+            }
+        }
     }
 }
